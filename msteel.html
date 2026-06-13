@@ -615,9 +615,12 @@ async function processSingle(file) {
     const rows = await extractRows(file, p => setProgress(10 + p*80, ''));
     if (!rows.length) { toast('No se encontraron filas', 'error'); showProgress(false); return; }
     setProgress(92, 'Guardando…');
-    for (const r of rows) await saveOrder(r);
+    let saved=0, dupes=0;
+    for (const r of rows) { const res = await saveOrder(r); res==='duplicate' ? dupes++ : saved++; }
     setProgress(100, '¡Listo!');
-    toast(`${rows.length} fila(s) importada(s)`, 'success');
+    if (saved===0 && dupes>0) toast(`⚠️ ${dupes} fila(s) ya existían — no se importó nada`, 'error');
+    else if (dupes>0) toast(`✓ ${saved} importada(s) · ${dupes} duplicada(s) ignorada(s)`,'');
+    else toast(`✓ ${saved} fila(s) importada(s) correctamente`, 'success');
     setTimeout(() => showProgress(false), 700);
   } catch(e) { showProgress(false); toast('Error: ' + e.message, 'error'); }
 }
@@ -650,19 +653,20 @@ async function processBulk(files) {
     sumEl.textContent=`${done}/${files.length} completados`;
     try {
       const rows = await extractRows(file, p => { pEl.style.width=(p*100)+'%'; });
-      for (const r of rows) await saveOrder(r);
-      totalRows += rows.length; done++;
+      let saved=0, dupes=0;
+      for (const r of rows) { const res = await saveOrder(r); res==='duplicate' ? dupes++ : saved++; }
+      totalRows += saved; done++;
       sEl.textContent='✓ Listo'; sEl.className='fstatus done';
-      rEl.textContent=rows.length+' fila(s)';
+      rEl.textContent = saved+' nueva(s)'+(dupes>0?' · '+dupes+' dup.':'');
       pEl.style.width='100%';
     } catch(e) {
       errors++;
       sEl.textContent='✗ Error'; sEl.className='fstatus err';
       rEl.textContent=e.message.slice(0,28);
     }
-    sumEl.textContent=`${done+errors}/${files.length} — ${totalRows} filas`;
+    sumEl.textContent=`${done+errors}/${files.length} — ${totalRows} filas nuevas`;
   }
-  toast(`Masivo: ${done} archivos, ${totalRows} filas${errors?' ('+errors+' errores)':''}`, errors?'':'success');
+  toast(`Masivo: ${done} archivos, ${totalRows} filas nuevas${errors?' ('+errors+' errores)':''}`, errors?'':'success');
 }
 
 async function extractRows(file, onProgress) {
@@ -723,12 +727,33 @@ function addWorkdays(iso, days) {
 //  CRUD
 // ══════════════════════════════════════════════════════
 async function saveOrder(row) {
+  // ── Verificar duplicado ──────────────────────────
+  // Considera duplicado si coinciden: fecha, sku, descripcion1, descripcion2,
+  // cantidad, oc_cliente, of_mch, of_interna, cliente, area
+  const isDuplicate = orders.some(o =>
+    o.fecha        === row.fecha        &&
+    o.sku          === row.sku          &&
+    o.descripcion1 === row.descripcion1 &&
+    o.descripcion2 === row.descripcion2 &&
+    o.cantidad     === row.cantidad     &&
+    o.oc_cliente   === row.oc_cliente   &&
+    o.of_mch       === row.of_mch       &&
+    o.of_interna   === row.of_interna   &&
+    o.cliente      === row.cliente      &&
+    o.area         === row.area
+  );
+  if (isDuplicate) {
+    console.warn('Duplicado ignorado:', row.sku, row.fecha);
+    return 'duplicate';
+  }
+
   if (sbClient) {
     const { data, error } = await sbClient.from(TABLE).insert([row]).select();
     if (error) throw error;
     orders.unshift(data[0]);
-  } else { row.id=Date.now()+Math.random(); orders.unshift(row); }
+  } else { row.id = Date.now() + Math.random(); orders.unshift(row); }
   renderOrdTable();
+  return 'saved';
 }
 
 async function updateEstado(id, value) {
