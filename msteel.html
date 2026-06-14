@@ -367,6 +367,10 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
           Subir Excel
         </button>
+        <button class="upload-btn" onclick="event.stopPropagation();downloadTemplate()" style="background:#065f46;color:#fff;border:none;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          📥 Plantilla
+        </button>
       </div>
     </div>
     <input type="file" id="pdf-input" accept="application/pdf" onchange="handleFiles([this.files[0]])"/>
@@ -1429,8 +1433,71 @@ window.showPage = function(id, el) {
 };
 
 // ══════════════════════════════════════════════════════
-//  EXCEL IMPORT
+//  PLANTILLA EXCEL
 // ══════════════════════════════════════════════════════
+function downloadTemplate() {
+  const headers = ['Fecha','SKU','Descripcion1','Descripcion2','Cantidad','OC Cliente','OF MCH','OF Interna','Cliente','Area','Estado'];
+  const example = [
+    ['14-06-2026','IMPU-1403','MSF-MC-004-001','60004',64,'4510257597','20260417 PH1','20260421-1','Centinela','IMPU','Pendiente'],
+    ['14-06-2026','IMPU-1404','MSF-MC-005-001','60005',32,'4510257598','20260417 PH2','20260421-2','Centinela','IMPU','Parcial'],
+    ['15-06-2026','IMPU-1405','MSF-MC-006-001','60006',16,'4510257599','20260418 PH1','20260422-1','Antucoya','IMPU','Entregado'],
+  ];
+
+  const wb = XLSX.utils.book_new();
+  const wsData = [headers, ...example];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Column widths
+  ws['!cols'] = [
+    {wch:14},{wch:14},{wch:20},{wch:14},{wch:10},
+    {wch:14},{wch:16},{wch:14},{wch:14},{wch:8},{wch:12}
+  ];
+
+  // Style header row (bold + green fill) — basic
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const cell = ws[XLSX.utils.encode_cell({r:0, c:C})];
+    if (cell) {
+      cell.s = {
+        font: { bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '0F6E56' } },
+        alignment: { horizontal: 'center' }
+      };
+    }
+  }
+
+  // Add a note sheet with instructions
+  const notasData = [
+    ['📋 INSTRUCCIONES — Plantilla MSTEEL'],
+    [''],
+    ['COLUMNA','FORMATO','EJEMPLO','OBLIGATORIO'],
+    ['Fecha','dd-mm-yyyy','14-06-2026','Sí'],
+    ['SKU','Texto libre','IMPU-1403','Sí'],
+    ['Descripcion1','Texto libre','MSF-MC-004-001','Sí'],
+    ['Descripcion2','Texto libre','60004','No'],
+    ['Cantidad','Número entero','64','Sí'],
+    ['OC Cliente','Texto/número','4510257597','No'],
+    ['OF MCH','Texto libre','20260417 PH1','No'],
+    ['OF Interna','Texto libre','20260421-1','No'],
+    ['Cliente','Texto libre','Centinela','No'],
+    ['Area','Texto libre','IMPU','No'],
+    ['Estado','Pendiente / Parcial / Entregado','Pendiente','No (default: Pendiente)'],
+    [''],
+    ['⚠️ IMPORTANTE:'],
+    ['- La fecha debe ir en formato dd-mm-yyyy (ejemplo: 14-06-2026)'],
+    ['- El Estado solo acepta: Pendiente, Parcial o Entregado'],
+    ['- No cambies los nombres de las columnas en la fila 1'],
+    ['- Puedes agregar tantas filas como necesites'],
+  ];
+  const wsNotas = XLSX.utils.aoa_to_sheet(notasData);
+  wsNotas['!cols'] = [{wch:20},{wch:32},{wch:20},{wch:28}];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Órdenes');
+  XLSX.utils.book_append_sheet(wb, wsNotas, 'Instrucciones');
+  XLSX.writeFile(wb, 'plantilla_msteel.xlsx');
+  toast('Plantilla descargada ✓', 'success');
+}
+
 async function handleExcel(file) {
   if (!file) return;
   showProgress(true);
@@ -1468,14 +1535,25 @@ async function handleExcel(file) {
 
     function parseDate(val) {
       if (!val) return null;
-      if (val instanceof Date) return val.toISOString().slice(0,10);
+      if (val instanceof Date && !isNaN(val)) return val.toISOString().slice(0,10);
       const s = String(val).trim();
-      // dd/mm/yyyy or dd-mm-yyyy
-      const m1 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-      if (m1) return `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+      // Formato especial: 214-06-2026 → día puede ser 1-3 dígitos antes del primer guión
+      // Cubrir: d-mm-yyyy, dd-mm-yyyy, ddd-mm-yyyy (error tipeo) y con /
+      const m1 = s.match(/^(\d{1,3})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (m1) {
+        let day = m1[1].padStart(2,'0');
+        // Si el día tiene 3 dígitos (ej: 214), tomamos últimos 2
+        if (m1[1].length === 3) day = m1[1].slice(1);
+        return `${m1[3]}-${m1[2].padStart(2,'0')}-${day}`;
+      }
       // yyyy-mm-dd
       const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
       if (m2) return s;
+      // Número serial de Excel (días desde 1900)
+      if (/^\d+(\.\d+)?$/.test(s)) {
+        const d = new Date((parseFloat(s) - 25569) * 86400 * 1000);
+        if (!isNaN(d)) return d.toISOString().slice(0,10);
+      }
       return null;
     }
 
