@@ -22,13 +22,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .page{display:none;padding:1.25rem 1.5rem;}
 .page.active{display:block;}
 
-header{background:var(--brand);height:64px;display:flex;align-items:center;padding:0 1.5rem;gap:14px;position:sticky;top:0;z-index:200;transition:background .3s;}
-.logo-slot{width:40px;height:40px;border-radius:8px;overflow:hidden;cursor:pointer;flex-shrink:0;background:rgba(255,255,255,.15);border:2px dashed rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;transition:.2s;position:relative;}
+header{background:var(--brand);height:76px;display:flex;align-items:center;padding:0 1.5rem;gap:14px;position:sticky;top:0;z-index:200;transition:background .3s;}
+.logo-slot{width:52px;height:52px;border-radius:10px;overflow:hidden;cursor:pointer;flex-shrink:0;background:rgba(255,255,255,.15);border:2px dashed rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;transition:.2s;position:relative;}
 .logo-slot:hover{border-color:#fff;background:rgba(255,255,255,.25);}
 .logo-slot img{width:100%;height:100%;object-fit:contain;display:none;}
 .logo-slot svg{pointer-events:none;}
 .logo-slot input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
-header h1{font-size:14px;font-weight:700;color:#fff;letter-spacing:.2px;white-space:nowrap;}
+header h1{font-size:16px;font-weight:700;color:#fff;letter-spacing:.2px;white-space:nowrap;}
 header .hbadge{background:rgba(255,255,255,.18);color:#fff;font-size:10px;padding:2px 8px;border-radius:20px;white-space:nowrap;}
 
 /* centered nav */
@@ -131,6 +131,8 @@ table.ord-tbl td{padding:7px 10px;vertical-align:middle;}
 .fi.cmt:not(:placeholder-shown){font-style:normal;}
 .btn-del{background:none;border:none;cursor:pointer;color:#dc3545;padding:3px 5px;border-radius:4px;font-size:15px;line-height:1;}
 .btn-del:hover{background:#fee2e2;}
+.btn-print-of{background:none;border:1px solid var(--border);cursor:pointer;color:var(--brand);padding:3px 7px;border-radius:4px;font-size:11px;font-weight:600;transition:.15s;white-space:nowrap;}
+.btn-print-of:hover{background:var(--brand-lt);border-color:var(--brand-mid);}
 .empty-state{text-align:center;padding:3rem;color:var(--text2);}
 .empty-state svg{opacity:.35;margin-bottom:12px;}
 .empty-state p{font-size:14px;} .empty-state small{font-size:12px;}
@@ -287,32 +289,46 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
 
 <!-- BG EDITOR PANEL -->
 <div id="bg-panel">
-  <h4>🎨 Personalizar fondo <button onclick="toggleBgPanel()">✕</button></h4>
+  <h4>🎨 Personalizar <button onclick="toggleBgPanel()">✕</button></h4>
+
   <div class="bg-section">
-    <label>Colores rápidos</label>
+    <label>🎨 Color del Header</label>
     <div class="bg-colors">
-      <div class="bg-swatch" style="background:#f0f4f8;" onclick="setBgColor('#f0f4f8')" title="Gris claro"></div>
-      <div class="bg-swatch" style="background:#E1F5EE;" onclick="setBgColor('#E1F5EE')" title="Verde claro"></div>
-      <div class="bg-swatch" style="background:#0F6E56;" onclick="setBgColor('#0F6E56')" title="Verde oscuro"></div>
-      <div class="bg-swatch" style="background:#1e293b;" onclick="setBgColor('#1e293b')" title="Azul oscuro"></div>
-      <div class="bg-swatch" style="background:#f8fafc;" onclick="setBgColor('#f8fafc')" title="Blanco"></div>
-      <div class="bg-swatch" style="background:#fff7ed;" onclick="setBgColor('#fff7ed')" title="Naranja claro"></div>
-      <div class="bg-swatch" style="background:#eff6ff;" onclick="setBgColor('#eff6ff')" title="Azul claro"></div>
-      <div class="bg-swatch" style="background:#fdf4ff;" onclick="setBgColor('#fdf4ff')" title="Violeta claro"></div>
+      <div class="bg-swatch" style="background:#0F6E56;" onclick="setHeaderColor('#0F6E56')" title="Verde Multotec"></div>
+      <div class="bg-swatch" style="background:#1e293b;" onclick="setHeaderColor('#1e293b')" title="Azul oscuro"></div>
+      <div class="bg-swatch" style="background:#1d4ed8;" onclick="setHeaderColor('#1d4ed8')" title="Azul"></div>
+      <div class="bg-swatch" style="background:#7c3aed;" onclick="setHeaderColor('#7c3aed')" title="Violeta"></div>
+      <div class="bg-swatch" style="background:#b91c1c;" onclick="setHeaderColor('#b91c1c')" title="Rojo"></div>
+      <div class="bg-swatch" style="background:#92400e;" onclick="setHeaderColor('#92400e')" title="Café"></div>
+      <div class="bg-swatch" style="background:#000000;" onclick="setHeaderColor('#000000')" title="Negro"></div>
+      <div class="bg-swatch" style="background:#374151;" onclick="setHeaderColor('#374151')" title="Gris"></div>
     </div>
+    <input type="color" id="hdr-custom-color" class="bg-color-input" value="#0F6E56" oninput="setHeaderColor(this.value)" style="height:36px;padding:2px 4px;cursor:pointer;margin-top:6px;"/>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:8px 0;"/>
+
+  <div class="bg-section">
+    <label>🖼 Fondo de la página</label>
+    <div class="bg-colors">
+      <div class="bg-swatch" style="background:#f0f4f8;" onclick="setBgColor('#f0f4f8')"></div>
+      <div class="bg-swatch" style="background:#E1F5EE;" onclick="setBgColor('#E1F5EE')"></div>
+      <div class="bg-swatch" style="background:#1e293b;" onclick="setBgColor('#1e293b')"></div>
+      <div class="bg-swatch" style="background:#f8fafc;" onclick="setBgColor('#f8fafc')"></div>
+      <div class="bg-swatch" style="background:#fff7ed;" onclick="setBgColor('#fff7ed')"></div>
+      <div class="bg-swatch" style="background:#eff6ff;" onclick="setBgColor('#eff6ff')"></div>
+      <div class="bg-swatch" style="background:#fdf4ff;" onclick="setBgColor('#fdf4ff')"></div>
+    </div>
+    <input type="color" id="bg-custom-color" class="bg-color-input" value="#f0f4f8" oninput="setBgColor(this.value)" style="height:36px;padding:2px 4px;cursor:pointer;margin-top:6px;"/>
   </div>
   <div class="bg-section">
-    <label>Color personalizado</label>
-    <input type="color" id="bg-custom-color" class="bg-color-input" value="#f0f4f8" oninput="setBgColor(this.value)" style="height:36px;padding:2px 4px;cursor:pointer;"/>
-  </div>
-  <div class="bg-section">
-    <label>Imagen de fondo</label>
+    <label>📷 Imagen de fondo</label>
     <div class="bg-img-btn">
       📁 Subir imagen de fondo
       <input type="file" accept="image/*" onchange="setBgImage(this)"/>
     </div>
   </div>
-  <button class="bg-reset" onclick="resetBg()">↩ Restablecer por defecto</button>
+  <button class="bg-reset" onclick="resetBg()">↩ Restablecer todo</button>
 </div>
 
 <!-- CONFIG BAR -->
@@ -385,7 +401,7 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
         <th>#</th><th>Fecha</th><th>SKU</th><th>Descripción 1</th><th>Descripción 2</th>
         <th>Cantidad</th><th>OC Cliente</th><th>OF MCH</th><th>OF Interna</th>
         <th>Cliente</th><th>Área</th><th>Estado</th><th>F. Entrega</th>
-        <th>F. Ingreso</th><th>F. Término</th><th>Comentarios</th><th></th>
+        <th>F. Ingreso</th><th>F. Término</th><th>Comentarios</th><th>🖨</th><th></th>
       </tr></thead>
       <tbody id="ord-body">
         <tr><td colspan="17"><div class="empty-state">
@@ -815,6 +831,7 @@ function renderOrdTable() {
       <td><input type="date" class="fi" value="${o.fecha_ingreso||''}" onchange="updateField('${o.id}','fecha_ingreso',this.value)"/></td>
       <td><input type="date" class="fi" value="${o.fecha_termino||''}" onchange="updateField('${o.id}','fecha_termino',this.value)"/></td>
       <td><input type="text" class="fi cmt" value="${esc(o.comentarios||'')}" placeholder="Nota…" onchange="updateField('${o.id}','comentarios',this.value)"/></td>
+      <td><button class="btn-print-of" onclick="printOF('${o.id}')" title="Imprimir OF">🖨 OF</button></td>
       <td><button class="btn-del" onclick="deleteOrder('${o.id}')">✕</button></td>
     </tr>`;
   }).join('');
@@ -1270,6 +1287,12 @@ function uploadLogo(input) {
   reader.readAsDataURL(file);
 }
 
+function setHeaderColor(color) {
+  document.getElementById('main-header').style.background = color;
+  document.getElementById('hdr-custom-color').value = color;
+  localStorage.setItem('msteel_hdr_color', color);
+}
+
 function toggleBgPanel() {
   const p = document.getElementById('bg-panel');
   p.style.display = p.style.display === 'block' ? 'none' : 'block';
@@ -1302,8 +1325,10 @@ function setBgImage(input) {
 function resetBg() {
   document.body.style.backgroundImage = 'none';
   document.body.style.backgroundColor = '#f0f4f8';
+  document.getElementById('main-header').style.background = '#0F6E56';
   localStorage.removeItem('msteel_bg_color');
   localStorage.removeItem('msteel_bg_image');
+  localStorage.removeItem('msteel_hdr_color');
   document.querySelectorAll('.bg-swatch').forEach(s => s.classList.remove('active'));
 }
 
@@ -1315,6 +1340,13 @@ function loadSavedAppearance() {
     const def = document.getElementById('logo-default');
     img.src = logo; img.style.display = 'block'; def.style.display = 'none';
   }
+  // Header color
+  const hdrColor = localStorage.getItem('msteel_hdr_color');
+  if (hdrColor) {
+    document.getElementById('main-header').style.background = hdrColor;
+    const hdrInput = document.getElementById('hdr-custom-color');
+    if (hdrInput) hdrInput.value = hdrColor;
+  }
   // Background
   const bgImg   = localStorage.getItem('msteel_bg_image');
   const bgColor = localStorage.getItem('msteel_bg_color');
@@ -1325,7 +1357,8 @@ function loadSavedAppearance() {
     document.body.style.backgroundAttachment = 'fixed';
   } else if (bgColor) {
     document.body.style.backgroundColor = bgColor;
-    document.getElementById('bg-custom-color').value = bgColor;
+    const bgInput = document.getElementById('bg-custom-color');
+    if (bgInput) bgInput.value = bgColor;
   }
 }
 
@@ -1360,8 +1393,84 @@ window.showPage = function(id, el) {
 };
 
 // ══════════════════════════════════════════════════════
-//  PRINT — sólo la marca
+//  IMPRIMIR OF (desde tabla de órdenes)
 // ══════════════════════════════════════════════════════
+function printOF(id) {
+  const o = orders.find(x => String(x.id) === String(id));
+  if (!o) return;
+  const now = new Date().toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+  <style>
+    @page { size: A4; margin: 15mm; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family: Arial, sans-serif; color: #1a202c; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .of-header { background: linear-gradient(135deg,#0F6E56,#1D9E75); padding: 20px 28px; display:flex; justify-content:space-between; align-items:center; border-radius:8px 8px 0 0; }
+    .of-brand { color:#fff; }
+    .of-brand h1 { font-size:20px; font-weight:800; }
+    .of-brand p  { font-size:11px; opacity:.8; letter-spacing:1px; text-transform:uppercase; }
+    .of-title { color:#fff; text-align:right; }
+    .of-title h2 { font-size:15px; font-weight:700; letter-spacing:1px; text-transform:uppercase; }
+    .of-title p  { font-size:12px; opacity:.8; margin-top:3px; }
+    .of-body { border:1px solid #e2e8f0; border-top:none; border-radius:0 0 8px 8px; padding:24px 28px; }
+    .of-grid { display:grid; grid-template-columns:1fr 1fr; gap:0; }
+    .of-field { padding:12px 0; border-bottom:1px solid #f1f5f9; }
+    .of-field:nth-child(odd)  { padding-right:20px; border-right:1px solid #f1f5f9; }
+    .of-field:nth-child(even) { padding-left:20px; }
+    .of-field:nth-last-child(-n+2) { border-bottom:none; }
+    .of-label { font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.8px; margin-bottom:3px; }
+    .of-value { font-size:16px; font-weight:700; color:#1a202c; }
+    .of-value.green { color:#0F6E56; font-size:20px; }
+    .of-value.mono  { font-family:'Courier New',monospace; font-size:14px; }
+    .of-footer { margin-top:20px; padding-top:14px; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; }
+    .of-footer span { font-size:10px; color:#94a3b8; font-weight:600; }
+    .estado-badge { padding:4px 12px; border-radius:20px; font-size:11px; font-weight:700; }
+    .est-Pendiente  { background:#fff3cd; color:#856404; }
+    .est-Parcial    { background:#cff4fc; color:#0c5460; }
+    .est-Entregado  { background:#d1fae5; color:#065f46; }
+    .sigs { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; margin-top:32px; }
+    .sig  { text-align:center; }
+    .sig-line { border-top:1px solid #1a202c; padding-top:6px; font-size:10px; color:#64748b; margin-top:36px; }
+  </style></head><body>
+  <div class="of-header">
+    <div class="of-brand"><h1>MULTOTEC STEEL</h1><p>Fabricación Industrial</p></div>
+    <div class="of-title"><h2>Orden de Fabricación</h2><p>Emisión: ${now}</p></div>
+  </div>
+  <div class="of-body">
+    <div class="of-grid">
+      <div class="of-field"><div class="of-label">SKU / Código</div><div class="of-value green mono">${o.sku||''}</div></div>
+      <div class="of-field"><div class="of-label">Cantidad</div><div class="of-value green">${o.cantidad||0} <span style="font-size:13px;font-weight:500;color:#64748b;">unidades</span></div></div>
+      <div class="of-field"><div class="of-label">Descripción Principal</div><div class="of-value">${o.descripcion1||''}</div></div>
+      <div class="of-field"><div class="of-label">Descripción Secundaria</div><div class="of-value" style="font-size:14px;">${o.descripcion2||''}</div></div>
+      <div class="of-field"><div class="of-label">Fecha</div><div class="of-value mono" style="font-size:14px;">${fmt(o.fecha)}</div></div>
+      <div class="of-field"><div class="of-label">Estado</div><div class="of-value"><span class="estado-badge est-${o.estado||'Pendiente'}">${o.estado||'Pendiente'}</span></div></div>
+      <div class="of-field"><div class="of-label">OC Cliente</div><div class="of-value mono" style="font-size:14px;">${o.oc_cliente||''}</div></div>
+      <div class="of-field"><div class="of-label">OF MCH</div><div class="of-value mono" style="font-size:14px;">${o.of_mch||''}</div></div>
+      <div class="of-field"><div class="of-label">OF Interna</div><div class="of-value mono" style="font-size:14px;">${o.of_interna||''}</div></div>
+      <div class="of-field"><div class="of-label">Cliente</div><div class="of-value">${o.cliente||''}</div></div>
+      <div class="of-field"><div class="of-label">Área</div><div class="of-value"><span style="background:#e0e7ff;color:#3730a3;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;">${o.area||''}</span></div></div>
+      <div class="of-field"><div class="of-label">Fecha Entrega</div><div class="of-value mono" style="font-size:14px;">${fmt(o.fecha_entrega)}</div></div>
+    </div>
+    ${o.comentarios ? `<div style="margin-top:16px;padding:12px;background:#f8fafc;border-radius:6px;border-left:3px solid #0F6E56;"><div class="of-label" style="margin-bottom:4px;">Comentarios</div><div style="font-size:13px;">${o.comentarios}</div></div>` : ''}
+    <div class="sigs">
+      <div class="sig"><div class="sig-line">Solicitado por</div></div>
+      <div class="sig"><div class="sig-line">Aprobado por</div></div>
+      <div class="sig"><div class="sig-line">Recibido por</div></div>
+    </div>
+    <div class="of-footer">
+      <span>MULTOTEC STEEL S.A. — Documento generado el ${now}</span>
+      <span>OF: ${o.of_interna||o.of_mch||''}</span>
+    </div>
+  </div>
+  </body></html>`;
+  const w = window.open('','_blank','width=800,height:900');
+  if (!w) { toast('Permite ventanas emergentes para imprimir','error'); return; }
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 600);
+}
+
+
 function printMarca() {
   const card = document.getElementById('marca-card-el');
   if (!card) { toast('Selecciona una orden primero', 'error'); return; }
