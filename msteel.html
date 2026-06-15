@@ -1694,31 +1694,32 @@ async function handleExcel(file) {
     for (let i=0; i<rows.length; i++) {
       setProgress(50 + Math.round(i/rows.length*45), `Guardando fila ${i+1}/${rows.length}…`);
       const r = rows[i];
-      const fechaRaw = getVal(r, colMap.fecha);
-      const estado   = getVal(r, colMap.estado);
+      const fechaRaw   = getVal(r, colMap.fecha);
+      const fechaISO   = parseDate(fechaRaw);
+      const estadoVal  = getVal(r, colMap.estado);
       const row = {
-        item:         String(i+1),
-        fecha:        parseDate(fechaRaw),
-        sku:          getVal(r, colMap.sku),
-        descripcion1: getVal(r, colMap.descripcion1),
-        descripcion2: getVal(r, colMap.descripcion2),
-        cantidad:     parseInt(getVal(r, colMap.cantidad))||0,
-        oc_cliente:   getVal(r, colMap.oc_cliente),
-        of_mch:       getVal(r, colMap.of_mch),
-        of_interna:   getVal(r, colMap.of_interna),
-        cliente:      getVal(r, colMap.cliente),
-        area:         getVal(r, colMap.area),
-        estado:       validEstados.includes(estado) ? estado : 'Pendiente',
-        fecha_entrega: row?.fecha ? addWorkdays(parseDate(fechaRaw), 6) : null,
+        item:          String(i+1),
+        fecha:         fechaISO,
+        sku:           getVal(r, colMap.sku),
+        descripcion1:  getVal(r, colMap.descripcion1),
+        descripcion2:  getVal(r, colMap.descripcion2),
+        cantidad:      parseInt(getVal(r, colMap.cantidad))||0,
+        oc_cliente:    getVal(r, colMap.oc_cliente),
+        of_mch:        getVal(r, colMap.of_mch),
+        of_interna:    getVal(r, colMap.of_interna),
+        cliente:       getVal(r, colMap.cliente),
+        area:          getVal(r, colMap.area),
+        estado:        validEstados.includes(estadoVal) ? estadoVal : 'Pendiente',
+        fecha_entrega: fechaISO ? addWorkdays(fechaISO, 6) : null,
         fecha_ingreso: null,
         fecha_termino: null,
-        comentarios:  '',
+        comentarios:   '',
       };
-      if (!row.sku && !row.descripcion1) continue; // skip empty rows
+      if (!row.sku && !row.descripcion1) continue;
       try {
         const res = await saveOrder(row);
         res==='duplicate' ? dupes++ : saved++;
-      } catch(e) { errors++; }
+      } catch(e) { errors++; console.error('Excel row error:',e); }
     }
 
     setProgress(100,'¡Listo!');
