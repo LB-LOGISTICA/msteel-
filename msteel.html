@@ -899,7 +899,7 @@ function renderOrdTable() {
       <td><code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;">${esc(o.sku)}</code></td>
       <td>${esc(o.descripcion1)}</td>
       <td style="color:var(--text2);">${esc(o.descripcion2)}</td>
-      <td style="text-align:right;"><input type="number" class="fi" style="width:60px;text-align:right;font-weight:600;" value="${o.cantidad||0}" onchange="updateField('${o.id}','cantidad',parseInt(this.value)||0)"/></td>
+      <td style="text-align:right;font-weight:600;">${o.cantidad||0}</td>
       <td style="color:var(--text2);font-size:11px;">${esc(o.oc_cliente)}</td>
       <td style="font-size:11px;">${esc(o.of_mch)}</td>
       <td style="font-size:11px;">${esc(o.of_interna)}</td>
