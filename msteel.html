@@ -595,9 +595,10 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
 //  GLOBALS
 // ══════════════════════════════════════════════════════
 let sbClient = null;
-let orders   = [];        // fuente única de verdad
+let orders   = [];
 let activeFilter = 'todos';
 let dashFiltered = [];
+let ordSort  = { col:'fecha', dir:-1 };
 let dataSort = { col:'fecha', dir:-1 };
 const TABLE  = 'ordenes_fabricacion';
 const MESES  = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -614,6 +615,7 @@ function showPage(id, el) {
   el.classList.add('active');
   if (id === 'dashboard') { populateFilterOptions(); applyFilters(); }
   if (id === 'data') renderDataTable();
+  if (id === 'marca') marcaInit();
 }
 
 // ══════════════════════════════════════════════════════
@@ -835,14 +837,13 @@ async function deleteOrder(id) {
 // ══════════════════════════════════════════════════════
 //  RENDER — ÓRDENES TABLE
 // ══════════════════════════════════════════════════════
-let ordSort = { col: 'fecha', dir: -1 };
-
 function sortOrd(col) {
   if (ordSort.col === col) ordSort.dir *= -1;
   else { ordSort.col = col; ordSort.dir = -1; }
   renderOrdTable();
 }
 
+function renderOrdTable() {
   // Populate filter dropdowns
   const areas    = [...new Set(orders.map(o=>o.area).filter(Boolean))].sort();
   const clientes = [...new Set(orders.map(o=>o.cliente).filter(Boolean))].sort();
@@ -1495,7 +1496,7 @@ function loadSavedAppearance() {
 // ══════════════════════════════════════════════════════
 //  PIN PARA ELIMINAR + AUTO-REFRESH + NOTIFICACIONES
 // ══════════════════════════════════════════════════════
-const DELETE_PIN = '1234'; // ← Cambia este PIN
+const DELETE_PIN = '1187'; // ← PIN para eliminar órdenes
 let autoRefreshTimer = null;
 
 function confirmDelete(id) {
@@ -1561,18 +1562,6 @@ window.addEventListener('load', () => {
   document.getElementById('sb-url').addEventListener('change', e => localStorage.setItem('sb_url', e.target.value));
   document.getElementById('sb-key').addEventListener('change', e => localStorage.setItem('sb_key', e.target.value));
 });
-
-// Patch showPage to also handle marca
-const _spOrig = showPage;
-window.showPage = function(id, el) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
-  el.classList.add('active');
-  if (id === 'dashboard') { populateFilterOptions(); applyFilters(); }
-  if (id === 'data') renderDataTable();
-  if (id === 'marca') marcaInit();
-};
 
 // ══════════════════════════════════════════════════════
 //  PLANTILLA EXCEL
@@ -1823,8 +1812,6 @@ function printOF(id) {
 // ══════════════════════════════════════════════════════
 //  DATA TABLE
 // ══════════════════════════════════════════════════════
-let dataSort = { col:'fecha', dir:-1 };
-
 function sortData(col) {
   if (dataSort.col===col) dataSort.dir*=-1; else { dataSort.col=col; dataSort.dir=-1; }
   document.querySelectorAll('.dtbl th').forEach(th=>th.classList.remove('sorted'));
