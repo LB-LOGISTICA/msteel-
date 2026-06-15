@@ -131,6 +131,7 @@ table.ord-tbl td{padding:7px 10px;vertical-align:middle;}
 .fi.cmt:not(:placeholder-shown){font-style:normal;}
 .btn-del{background:none;border:none;cursor:pointer;color:#dc3545;padding:3px 5px;border-radius:4px;font-size:15px;line-height:1;}
 .btn-del:hover{background:#fee2e2;}
+.fi.vencida-date{border-color:#dc3545;color:#dc3545;}
 .btn-print-of{background:none;border:1px solid var(--border);cursor:pointer;color:var(--brand);padding:3px 7px;border-radius:4px;font-size:11px;font-weight:600;transition:.15s;white-space:nowrap;}
 .btn-print-of:hover{background:var(--brand-lt);border-color:var(--brand-mid);}
 .empty-state{text-align:center;padding:3rem;color:var(--text2);}
@@ -272,7 +273,7 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
 
   <!-- Tabs centrados -->
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('ordenes',this)">📋 Órdenes</button>
+    <button class="nav-tab active" onclick="showPage('ordenes',this)">📋 Órdenes <span id="alert-badge" style="display:none;background:#dc3545;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:3px;"></span></button>
     <button class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</button>
     <button class="nav-tab" onclick="showPage('data',this)">🗄 Data</button>
     <button class="nav-tab" onclick="showPage('marca',this)">🏷 Marca</button>
@@ -418,13 +419,23 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
   <div class="table-wrap">
     <table class="ord-tbl">
       <thead><tr>
-        <th>#</th><th>Fecha</th><th>SKU</th><th>Descripción 1</th><th>Descripción 2</th>
-        <th>Cantidad</th><th>OC Cliente</th><th>OF MCH</th><th>OF Interna</th>
-        <th>Cliente</th><th>Área</th><th>Estado</th><th>F. Entrega</th>
+        <th>#</th>
+        <th onclick="sortOrd('fecha')" style="cursor:pointer;">Fecha ↕</th>
+        <th onclick="sortOrd('sku')" style="cursor:pointer;">SKU ↕</th>
+        <th onclick="sortOrd('descripcion1')" style="cursor:pointer;">Descripción 1 ↕</th>
+        <th>Descripción 2</th>
+        <th onclick="sortOrd('cantidad')" style="cursor:pointer;">Cantidad ↕</th>
+        <th>OC Cliente</th>
+        <th onclick="sortOrd('of_mch')" style="cursor:pointer;">OF MCH ↕</th>
+        <th>OF Interna</th>
+        <th onclick="sortOrd('cliente')" style="cursor:pointer;">Cliente ↕</th>
+        <th onclick="sortOrd('area')" style="cursor:pointer;">Área ↕</th>
+        <th onclick="sortOrd('estado')" style="cursor:pointer;">Estado ↕</th>
+        <th onclick="sortOrd('fecha_entrega')" style="cursor:pointer;">F. Entrega ↕</th>
         <th>F. Ingreso</th><th>F. Término</th><th>Comentarios</th><th>🖨</th><th></th>
       </tr></thead>
       <tbody id="ord-body">
-        <tr><td colspan="17"><div class="empty-state">
+        <tr><td colspan="18"><div class="empty-state">
           <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
           <p>No hay órdenes registradas</p><small>Sube un PDF para comenzar</small>
         </div></td></tr>
@@ -445,16 +456,22 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
     </select>
     <select id="f-año"  class="fsel" onchange="applyFilters()"><option value="">Todos los años</option></select>
     <select id="f-mes"  class="fsel" onchange="applyFilters()"><option value="">Todos los meses</option></select>
+    <label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Desde</label>
+    <input type="date" id="f-desde" class="fsel" style="padding:4px 8px;" onchange="applyFilters()"/>
+    <label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Hasta</label>
+    <input type="date" id="f-hasta" class="fsel" style="padding:4px 8px;" onchange="applyFilters()"/>
     <span id="rec-count"></span>
     <button class="reset-btn" onclick="resetFilters()">✕ Limpiar</button>
   </div>
 
-  <div class="kpi-row">
+  <div class="kpi-row" style="grid-template-columns:repeat(7,1fr);">
     <div class="kpi"><span class="klabel">Total Órdenes</span><span class="kval" id="kpi-total">—</span><span class="ksub">registros</span></div>
     <div class="kpi"><span class="klabel">Cantidad Total</span><span class="kval" id="kpi-qty">—</span><span class="ksub">unidades</span></div>
     <div class="kpi"><span class="klabel">Entregadas</span><span class="kval" id="kpi-ent">—</span><span class="ksub" id="kpi-ent-s"></span><div class="kbar"><div class="kbar-fill" id="kb-ent" style="background:var(--c0)"></div></div></div>
     <div class="kpi"><span class="klabel">Pendientes</span><span class="kval" id="kpi-pend">—</span><span class="ksub" id="kpi-pend-s"></span><div class="kbar"><div class="kbar-fill" id="kb-pend" style="background:var(--c2)"></div></div></div>
-    <div class="kpi"><span class="klabel">Cumplimiento</span><span class="kval" id="kpi-cum">—</span><span class="ksub">entrega a tiempo</span><div class="kbar"><div class="kbar-fill" id="kb-cum" style="background:var(--c1)"></div></div></div>
+    <div class="kpi"><span class="klabel">⚠️ Vencidas</span><span class="kval" id="kpi-venc" style="color:#dc3545;">—</span><span class="ksub">sin entregar</span><div class="kbar"><div class="kbar-fill" id="kb-venc" style="background:#dc3545;"></div></div></div>
+    <div class="kpi"><span class="klabel">Cumplimiento</span><span class="kval" id="kpi-cum">—</span><span class="ksub">a tiempo</span><div class="kbar"><div class="kbar-fill" id="kb-cum" style="background:var(--c1)"></div></div></div>
+    <div class="kpi"><span class="klabel">Días Prom.</span><span class="kval" id="kpi-dias">—</span><span class="ksub">ingreso→término</span></div>
   </div>
 
   <div class="chart-grid" style="margin-bottom:10px;">
@@ -469,6 +486,10 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
     <div class="chart-card"><h3>Cumplimiento de Entrega</h3><div class="ch-wrap donut"><canvas id="ch-cum"></canvas></div></div>
     <div class="chart-card"><h3>Estado de Órdenes</h3><div class="ch-wrap donut"><canvas id="ch-estado"></canvas></div></div>
     <div class="chart-card"><h3>Top Clientes × Cantidad</h3><div class="ch-wrap"><canvas id="ch-cliente"></canvas></div></div>
+  </div>
+  <div class="chart-grid" style="margin-top:10px;">
+    <div class="chart-card"><h3>⚠️ Órdenes Vencidas por Área</h3><div class="ch-wrap"><canvas id="ch-vencidas"></canvas></div></div>
+    <div class="chart-card"><h3>Días Promedio por Cliente</h3><div class="ch-wrap"><canvas id="ch-dias"></canvas></div></div>
   </div>
 </div>
 
@@ -612,6 +633,7 @@ async function initSupabase() {
     st.textContent = '✓ Conectado'; st.className = 'ok';
     toast('Supabase conectado', 'success');
     loadOrders();
+    startAutoRefresh();
   } catch(e) {
     st.textContent = '✗ Error'; st.className = 'err';
     toast('Error: ' + e.message, 'error');
@@ -624,6 +646,7 @@ async function loadOrders() {
   if (error) { toast('Error cargando: ' + error.message, 'error'); return; }
   orders = data || [];
   renderOrdTable();
+  checkVencidasNotify();
   toast(`${orders.length} órdenes cargadas`, 'success');
 }
 
@@ -812,7 +835,14 @@ async function deleteOrder(id) {
 // ══════════════════════════════════════════════════════
 //  RENDER — ÓRDENES TABLE
 // ══════════════════════════════════════════════════════
-function renderOrdTable() {
+let ordSort = { col: 'fecha', dir: -1 };
+
+function sortOrd(col) {
+  if (ordSort.col === col) ordSort.dir *= -1;
+  else { ordSort.col = col; ordSort.dir = -1; }
+  renderOrdTable();
+}
+
   // Populate filter dropdowns
   const areas    = [...new Set(orders.map(o=>o.area).filter(Boolean))].sort();
   const clientes = [...new Set(orders.map(o=>o.cliente).filter(Boolean))].sort();
@@ -835,6 +865,13 @@ function renderOrdTable() {
     .some(v=>String(v||'').toLowerCase().includes(q))
   );
 
+  // Sort
+  flt = [...flt].sort((a,b) => {
+    const va = String(a[ordSort.col]||'');
+    const vb = String(b[ordSort.col]||'');
+    return va.localeCompare(vb,'es',{numeric:true}) * ordSort.dir;
+  });
+
   document.getElementById('count-label').textContent = `— ${flt.length} orden${flt.length!==1?'es':''}`;
   const tbody = document.getElementById('ord-body');
 
@@ -846,15 +883,22 @@ function renderOrdTable() {
     return;
   }
 
+  const today = new Date().toISOString().slice(0,10);
   tbody.innerHTML = flt.map((o,i) => {
     const ec = 'est-'+(o.estado||'Pendiente');
-    return `<tr>
-      <td style="color:var(--text2);font-size:11px;">${i+1}</td>
+    const vencida = o.estado!=='Entregado' && o.fecha_entrega && o.fecha_entrega < today;
+    const proxima = o.estado!=='Entregado' && o.fecha_entrega && o.fecha_entrega >= today &&
+                    (new Date(o.fecha_entrega)-new Date())/(1000*60*60*24) <= 2;
+    const rowStyle = vencida ? 'background:#fff5f5;' : proxima ? 'background:#fffbeb;' : '';
+    const alertIcon = vencida ? '<span title="Vencida" style="color:#dc3545;font-size:13px;">⚠️</span>' :
+                      proxima ? '<span title="Vence pronto" style="color:#f59e0b;font-size:13px;">🔔</span>' : '';
+    return `<tr style="${rowStyle}">
+      <td style="color:var(--text2);font-size:11px;">${alertIcon}${i+1}</td>
       <td>${fmt(o.fecha)}</td>
       <td><code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;">${esc(o.sku)}</code></td>
       <td>${esc(o.descripcion1)}</td>
       <td style="color:var(--text2);">${esc(o.descripcion2)}</td>
-      <td style="font-weight:600;text-align:right;">${o.cantidad}</td>
+      <td style="text-align:right;"><input type="number" class="fi" style="width:60px;text-align:right;font-weight:600;" value="${o.cantidad||0}" onchange="updateField('${o.id}','cantidad',parseInt(this.value)||0)"/></td>
       <td style="color:var(--text2);font-size:11px;">${esc(o.oc_cliente)}</td>
       <td style="font-size:11px;">${esc(o.of_mch)}</td>
       <td style="font-size:11px;">${esc(o.of_interna)}</td>
@@ -867,12 +911,12 @@ function renderOrdTable() {
           <option${o.estado==='Entregado'?' selected':''}>Entregado</option>
         </select>
       </td>
-      <td><input type="date" class="fi" value="${o.fecha_entrega||''}" onchange="updateField('${o.id}','fecha_entrega',this.value)" title="6 días hábiles"/></td>
+      <td><input type="date" class="fi${vencida?' vencida-date':''}" value="${o.fecha_entrega||''}" onchange="updateField('${o.id}','fecha_entrega',this.value)" title="6 días hábiles"/></td>
       <td><input type="date" class="fi" value="${o.fecha_ingreso||''}" onchange="updateField('${o.id}','fecha_ingreso',this.value)"/></td>
       <td><input type="date" class="fi" value="${o.fecha_termino||''}" onchange="updateField('${o.id}','fecha_termino',this.value)"/></td>
       <td><input type="text" class="fi cmt" value="${esc(o.comentarios||'')}" placeholder="Nota…" onchange="updateField('${o.id}','comentarios',this.value)"/></td>
       <td><button class="btn-print-of" onclick="printOF('${o.id}')" title="Imprimir OF">🖨 OF</button></td>
-      <td><button class="btn-del" onclick="deleteOrder('${o.id}')">✕</button></td>
+      <td><button class="btn-del" onclick="confirmDelete('${o.id}')">✕</button></td>
     </tr>`;
   }).join('');
 }
@@ -916,11 +960,13 @@ function fillSel(id, vals, placeholder) {
 }
 
 function applyFilters() {
-  const fc=document.getElementById('f-cliente').value;
-  const fa=document.getElementById('f-area').value;
-  const fe=document.getElementById('f-estado').value;
-  const fy=document.getElementById('f-año').value;
-  const fm=document.getElementById('f-mes').value;
+  const fc    = document.getElementById('f-cliente').value;
+  const fa    = document.getElementById('f-area').value;
+  const fe    = document.getElementById('f-estado').value;
+  const fy    = document.getElementById('f-año').value;
+  const fm    = document.getElementById('f-mes').value;
+  const desde = document.getElementById('f-desde').value;
+  const hasta = document.getElementById('f-hasta').value;
 
   dashFiltered = orders.filter(d => {
     if (fc && d.cliente!==fc) return false;
@@ -928,6 +974,8 @@ function applyFilters() {
     if (fe && d.estado!==fe) return false;
     if (fy && d.fecha?.slice(0,4)!==fy) return false;
     if (fm!=='' && d.fecha) { if(String(parseInt(d.fecha.slice(5,7))-1)!==String(fm)) return false; }
+    if (desde && d.fecha && d.fecha < desde) return false;
+    if (hasta && d.fecha && d.fecha > hasta) return false;
     return true;
   });
 
@@ -937,7 +985,9 @@ function applyFilters() {
 }
 
 function resetFilters() {
-  ['f-cliente','f-area','f-estado','f-año','f-mes'].forEach(id=>document.getElementById(id).value='');
+  ['f-cliente','f-area','f-estado','f-año','f-mes','f-desde','f-hasta'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
   applyFilters();
 }
 
@@ -945,23 +995,39 @@ function resetFilters() {
 //  KPIs
 // ══════════════════════════════════════════════════════
 function updateKPIs() {
+  const today = new Date().toISOString().slice(0,10);
   const total = dashFiltered.length;
   const qty   = dashFiltered.reduce((s,d)=>s+(parseInt(d.cantidad)||0),0);
   const ent   = dashFiltered.filter(d=>d.estado==='Entregado').length;
-  const pend  = dashFiltered.filter(d=>d.estado==='Pendiente').length;
+  const pend  = dashFiltered.filter(d=>d.estado==='Pendiente'||d.estado==='Parcial').length;
+  const venc  = dashFiltered.filter(d=>d.estado!=='Entregado' && d.fecha_entrega && d.fecha_entrega < today).length;
   const conF  = dashFiltered.filter(d=>d.estado==='Entregado'&&d.fecha_entrega&&d.fecha_termino);
   const atiem = conF.filter(d=>d.fecha_termino<=d.fecha_entrega).length;
   const cum   = conF.length ? Math.round(atiem/conF.length*100) : null;
+
+  // Avg days ingreso → termino
+  const conDias = dashFiltered.filter(d=>d.fecha_ingreso&&d.fecha_termino);
+  let avgDias = null;
+  if (conDias.length) {
+    const totalDias = conDias.reduce((s,d)=>{
+      const diff = (new Date(d.fecha_termino)-new Date(d.fecha_ingreso))/(1000*60*60*24);
+      return s + diff;
+    },0);
+    avgDias = Math.round(totalDias/conDias.length);
+  }
 
   document.getElementById('kpi-total').textContent = total;
   document.getElementById('kpi-qty').textContent   = qty.toLocaleString('es-CL');
   document.getElementById('kpi-ent').textContent   = ent;
   document.getElementById('kpi-pend').textContent  = pend;
+  document.getElementById('kpi-venc').textContent  = venc;
   document.getElementById('kpi-cum').textContent   = cum!==null ? cum+'%' : 'N/A';
+  document.getElementById('kpi-dias').textContent  = avgDias!==null ? avgDias+'d' : 'N/A';
   document.getElementById('kpi-ent-s').textContent  = total ? Math.round(ent/total*100)+'% del total' : '';
   document.getElementById('kpi-pend-s').textContent = total ? Math.round(pend/total*100)+'% del total' : '';
   document.getElementById('kb-ent').style.width   = (total?ent/total*100:0)+'%';
   document.getElementById('kb-pend').style.width  = (total?pend/total*100:0)+'%';
+  document.getElementById('kb-venc').style.width  = (total?venc/total*100:0)+'%';
   document.getElementById('kb-cum').style.width   = (cum||0)+'%';
 }
 
@@ -1052,6 +1118,30 @@ function updateAllCharts() {
     labels:cli.map(e=>e[0]),
     datasets:[{data:cli.map(e=>e[1]),backgroundColor:PAL.map(c=>c+'bb'),borderRadius:5}]
   }, baseOpts(true));
+
+  // Vencidas por área
+  const today = new Date().toISOString().slice(0,10);
+  const vencidas = dashFiltered.filter(d=>d.estado!=='Entregado'&&d.fecha_entrega&&d.fecha_entrega<today);
+  const vMap = groupSum(vencidas, d=>d.area);
+  const vE = topN(vMap,10);
+  upsertChart('ch-vencidas','bar',{
+    labels: vE.map(e=>e[0]),
+    datasets:[{data:vE.map(e=>e[1]),backgroundColor:'#ef4444bb',borderRadius:5}]
+  },{ ...baseOpts(), plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.parsed.y+' vencidas'}}} });
+
+  // Días promedio por cliente
+  const diasMap = {};
+  const diasCount = {};
+  dashFiltered.filter(d=>d.fecha_ingreso&&d.fecha_termino&&d.cliente).forEach(d=>{
+    const diff = Math.round((new Date(d.fecha_termino)-new Date(d.fecha_ingreso))/(1000*60*60*24));
+    diasMap[d.cliente]   = (diasMap[d.cliente]||0) + diff;
+    diasCount[d.cliente] = (diasCount[d.cliente]||0) + 1;
+  });
+  const diasAvg = Object.entries(diasMap).map(([k,v])=>([k, Math.round(v/diasCount[k])])).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  upsertChart('ch-dias','bar',{
+    labels: diasAvg.map(e=>e[0]),
+    datasets:[{data:diasAvg.map(e=>e[1]),backgroundColor:PAL[4]+'bb',borderRadius:5}]
+  },{ ...baseOpts(true), plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.parsed.x+' días promedio'}}} });
 }
 
 // ══════════════════════════════════════════════════════
@@ -1403,6 +1493,58 @@ function loadSavedAppearance() {
 }
 
 // ══════════════════════════════════════════════════════
+//  PIN PARA ELIMINAR + AUTO-REFRESH + NOTIFICACIONES
+// ══════════════════════════════════════════════════════
+const DELETE_PIN = '1234'; // ← Cambia este PIN
+let autoRefreshTimer = null;
+
+function confirmDelete(id) {
+  const pin = prompt('🔒 Ingresa el PIN para eliminar esta orden:');
+  if (pin === null) return; // cancelado
+  if (pin !== DELETE_PIN) { toast('PIN incorrecto ❌', 'error'); return; }
+  deleteOrder(id);
+}
+
+function startAutoRefresh() {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  autoRefreshTimer = setInterval(async () => {
+    if (!sbClient) return;
+    const { data, error } = await sbClient.from(TABLE).select('*').order('created_at',{ascending:false});
+    if (error || !data) return;
+    const prevCount = orders.length;
+    orders = data;
+    renderOrdTable();
+    // If on dashboard, refresh charts silently
+    if (document.getElementById('page-dashboard').classList.contains('active')) {
+      applyFilters();
+    }
+    // Show notification if new orders arrived
+    if (data.length > prevCount) {
+      const nuevas = data.length - prevCount;
+      toast(`🔔 ${nuevas} nueva(s) orden(es) agregada(s)`, 'success');
+    }
+    // Check vencidas and notify
+    checkVencidasNotify();
+  }, 30000); // every 30 seconds
+}
+
+function checkVencidasNotify() {
+  const today = new Date().toISOString().slice(0,10);
+  const vencidas = orders.filter(d=>d.estado!=='Entregado'&&d.fecha_entrega&&d.fecha_entrega<today);
+  const proximas = orders.filter(d=>{
+    if (d.estado==='Entregado'||!d.fecha_entrega) return false;
+    const dias = (new Date(d.fecha_entrega)-new Date())/(1000*60*60*24);
+    return dias>=0 && dias<=2;
+  });
+  // Update page title with alert count
+  const alertas = vencidas.length + proximas.length;
+  document.title = alertas>0 ? `(${alertas}) MSTEEL — Órdenes` : 'MSTEEL — Órdenes de Fabricación';
+  // Update nav tab badge
+  const badge = document.getElementById('alert-badge');
+  if (badge) { badge.textContent = alertas>0?alertas:''; badge.style.display=alertas>0?'inline':'none'; }
+}
+
+// ══════════════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════════════
 const SB_URL = 'https://umdeayggxgnmlpibybpx.supabase.co';
@@ -1678,7 +1820,58 @@ function printOF(id) {
 }
 
 
-function printMarca() {
+// ══════════════════════════════════════════════════════
+//  DATA TABLE
+// ══════════════════════════════════════════════════════
+let dataSort = { col:'fecha', dir:-1 };
+
+function sortData(col) {
+  if (dataSort.col===col) dataSort.dir*=-1; else { dataSort.col=col; dataSort.dir=-1; }
+  document.querySelectorAll('.dtbl th').forEach(th=>th.classList.remove('sorted'));
+  event?.currentTarget?.classList.add('sorted');
+  renderDataTable();
+}
+
+function renderDataTable() {
+  const q=(document.getElementById('data-search')?.value||'').toLowerCase();
+  let rows=[...orders];
+  if (q) rows=rows.filter(d=>Object.values(d).some(v=>String(v||'').toLowerCase().includes(q)));
+  rows.sort((a,b)=>String(a[dataSort.col]||'').localeCompare(String(b[dataSort.col]||''),'es',{numeric:true})*dataSort.dir);
+
+  const body=document.getElementById('data-body');
+  if (!body) return;
+  if (!rows.length) {
+    body.innerHTML=`<tr><td colspan="15"><div class="empty-state"><p>Sin registros${q?' para "'+q+'"':''}</p></div></td></tr>`;
+    document.getElementById('data-footer').textContent='';
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0,10);
+  body.innerHTML=rows.map(d=>{
+    const vencida = d.estado!=='Entregado' && d.fecha_entrega && d.fecha_entrega < today;
+    return `<tr style="${vencida?'background:#fff5f5;':''}">
+    <td style="font-size:11px;color:var(--text2);">${fmt(d.fecha)}</td>
+    <td><code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;">${esc(d.sku)}</code></td>
+    <td>${esc(d.descripcion1)}</td>
+    <td style="color:var(--text2);">${esc(d.descripcion2)}</td>
+    <td style="text-align:right;font-weight:600;">${d.cantidad||0}</td>
+    <td style="font-size:11px;color:var(--text2);">${esc(d.oc_cliente)}</td>
+    <td style="font-size:11px;">${esc(d.of_mch)}</td>
+    <td style="font-size:11px;">${esc(d.of_interna)}</td>
+    <td style="font-weight:500;">${esc(d.cliente)}</td>
+    <td><span style="background:#e0e7ff;color:#3730a3;font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;">${esc(d.area)}</span></td>
+    <td><span class="dbadge ${d.estado||''}">${esc(d.estado)}</span></td>
+    <td style="font-size:11px;${vencida?'color:#dc3545;font-weight:600;':''}">${fmt(d.fecha_entrega)}</td>
+    <td style="font-size:11px;">${fmt(d.fecha_ingreso)}</td>
+    <td style="font-size:11px;">${fmt(d.fecha_termino)}</td>
+    <td style="color:var(--text2);font-size:11px;font-style:italic;">${esc(d.comentarios)}</td>
+  </tr>`;}).join('');
+  document.getElementById('data-footer').textContent=`${rows.length} registros`;
+}
+
+function exportCSVData() { exportCSVOrd(); }
+
+
   const card = document.getElementById('marca-card-el');
   if (!card) { toast('Selecciona una orden primero', 'error'); return; }
 
