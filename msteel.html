@@ -764,7 +764,12 @@ function parseOrden(text) {
   const lines = text.replace(/\r/g,'').split('\n').map(l=>l.trim()).filter(Boolean);
   const full  = lines.join(' ');
 
-  const pat = /(\d+)\s+(\d{2}-\d{2}-\d{4})\s+([A-Z0-9\-]+)\s+([\w\-\/]+(?:\s[\w\-\/]+)*?)\s+(\d{4,6})\s+(\d+)\s+(\d{6,12})\s+([\w\d\s]+?(?:PH\d+)?)\s+([\w\d\-]+)\s+([\w]+(?:\s[\w]+)*?)\s+([A-Z]{2,6})/g;
+  // Patrón principal: usa como anclas fijas el item+fecha al inicio,
+  // el formato AAAAMMDD-N de "OF Interna" y el código de Área (mayúsculas) al final.
+  // OC Cliente y OF MCH pueden venir en formatos muy variables (numérico, "OC#####",
+  // "Pendiente", "0", o con letra+números como "B48214"), por lo que se capturan
+  // de forma flexible en vez de exigir un formato numérico fijo.
+  const pat = /(\d+)\s+(\d{2}-\d{2}-\d{4})\s+(\S+)\s+(\S+)\s+(\d{4,7})\s+(\d+)\s+(\S+)\s+(.+?)\s+(\d{8}-\d+)\s+(.+?)\s+([A-Z]{2,8})\b/g;
   let m;
   while ((m=pat.exec(full))!==null) rows.push(mkRow(m[1],m[2],m[3],m[4],m[5],m[6],m[7],m[8],m[9],m[10],m[11]));
 
@@ -777,7 +782,7 @@ function parseOrden(text) {
   }
 
   if (!rows.length) {
-    const bm = full.match(/(\d+)\s+(\d{2}-\d{2}-\d{4})\s+(IMPU-\d+|[A-Z]{2,6}-[\w\d-]+)\s+([\w\d/-]+(?:\s[\w\d/-]+)*)\s+(\d{5,6})\s+(\d+)\s+(\d{10})\s+([\w\d\s]+)\s+([\w\d-]+)\s+([\w]+)\s+([A-Z]{2,6})/);
+    const bm = full.match(/(\d+)\s+(\d{2}-\d{2}-\d{4})\s+(\S+)\s+(\S+)\s+(\d{4,7})\s+(\d+)\s+(\S+)\s+(.+?)\s+(\d{8}-\d+)\s+(.+?)\s+([A-Z]{2,8})/);
     if (bm) rows.push(mkRow(bm[1],bm[2],bm[3],bm[4],bm[5],bm[6],bm[7],bm[8],bm[9],bm[10],bm[11]));
   }
   return rows;
