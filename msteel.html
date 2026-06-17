@@ -255,6 +255,25 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
 </head>
 <body>
 
+<!-- ══════════ LOGIN OVERLAY ══════════ -->
+<div id="login-overlay" style="display:flex;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0F6E56,#1D9E75);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:2.2rem 2rem;width:340px;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="text-align:center;margin-bottom:1.4rem;">
+      <div style="font-size:13px;font-weight:800;color:#0F6E56;letter-spacing:1px;text-transform:uppercase;">MULTOTEC STEEL</div>
+      <div style="font-size:18px;font-weight:700;color:#1a202c;margin-top:4px;">Iniciar sesión</div>
+    </div>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Usuario</label>
+    <input id="login-usuario" type="text" autocomplete="username" placeholder="Ej: LBUSTOS"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:12px;outline:none;text-transform:uppercase;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Contraseña</label>
+    <input id="login-password" type="password" autocomplete="current-password" placeholder="••••••••"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:6px;outline:none;"
+      onkeydown="if(event.key==='Enter')intentarLogin()"/>
+    <div id="login-error" style="color:#dc3545;font-size:12px;font-weight:600;min-height:16px;margin-bottom:10px;"></div>
+    <button onclick="intentarLogin()" style="width:100%;background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;">Ingresar</button>
+  </div>
+</div>
+
 <!-- HEADER -->
 <header id="main-header">
   <!-- Logo editable -->
@@ -278,10 +297,16 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
     <button class="nav-tab" onclick="showPage('data',this)">🗄 Data</button>
     <button class="nav-tab" onclick="showPage('logistica',this)">🚚 OF Logística</button>
     <button class="nav-tab" onclick="showPage('marca',this)">🏷 Marca</button>
+    <button class="nav-tab" id="nav-movimientos" style="display:none;" onclick="showPage('movimientos',this)">🛡 Movimientos</button>
   </div>
 
   <!-- Acciones derecha -->
   <div class="header-right">
+    <span id="user-badge" style="font-size:11px;font-weight:600;color:rgba(255,255,255,.85);margin-right:6px;"></span>
+    <button class="hdr-btn" onclick="cerrarSesion()" title="Cerrar sesión">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Salir
+    </button>
     <button class="hdr-btn" onclick="toggleBgPanel()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
       Personalizar
@@ -433,7 +458,7 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
         <th onclick="sortOrd('area')" style="cursor:pointer;">Área ↕</th>
         <th onclick="sortOrd('estado')" style="cursor:pointer;">Estado ↕</th>
         <th onclick="sortOrd('fecha_entrega')" style="cursor:pointer;">F. Entrega ↕</th>
-        <th>F. Ingreso</th><th>F. Término</th><th>Comentarios</th><th>🖨</th><th></th>
+        <th>F. Ingreso</th><th>F. Término</th><th onclick="sortOrd('msteel')" style="cursor:pointer;">Msteel ↕</th><th>🖨</th><th></th>
       </tr></thead>
       <tbody id="ord-body">
         <tr><td colspan="18"><div class="empty-state">
@@ -638,7 +663,7 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
         <th onclick="sortData('fecha_entrega')">F. Entrega <span>↕</span></th>
         <th onclick="sortData('fecha_ingreso')">F. Ingreso <span>↕</span></th>
         <th onclick="sortData('fecha_termino')">F. Término <span>↕</span></th>
-        <th>Comentarios</th>
+        <th onclick="sortData('msteel')">Msteel <span>↕</span></th>
       </tr></thead>
       <tbody id="data-body">
         <tr><td colspan="15"><div class="empty-state"><p>Conecta Supabase para ver los datos</p></div></td></tr>
@@ -706,6 +731,39 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
   </div>
 </div>
 
+<!-- ══════════ MOVIMIENTOS PAGE (solo ADMIN) ══════════ -->
+<div id="page-movimientos" class="page">
+  <div class="ord-toolbar">
+    <h2>🛡 Movimientos <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label-mov"></span></h2>
+    <input id="mov-search" type="text" placeholder="🔍 Buscar usuario, módulo, acción…" oninput="renderMovimientosTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:240px;outline:none;"/>
+    <select id="mov-filter-usuario" onchange="renderMovimientosTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los usuarios</option>
+    </select>
+    <select id="mov-filter-modulo" onchange="renderMovimientosTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los módulos</option>
+    </select>
+    <button class="btn-primary" onclick="loadMovimientos()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Actualizar
+    </button>
+  </div>
+  <div class="table-wrap">
+    <table class="ord-tbl">
+      <thead><tr>
+        <th>Fecha / Hora</th><th>Usuario</th><th>Módulo</th><th>Acción</th><th>Detalle</th>
+      </tr></thead>
+      <tbody id="mov-body">
+        <tr><td colspan="5"><div class="empty-state">
+          <p>Sin movimientos registrados todavía</p>
+        </div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -727,10 +785,17 @@ const MESES  = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov
 const PAL    = ['#1D9E75','#3B82F6','#F59E0B','#EF4444','#8B5CF6','#06B6D4','#EC4899','#84CC16','#F97316','#14B8A6'];
 const charts = {};
 
+// ── AUTENTICACIÓN / PERMISOS / MOVIMIENTOS ──
+let currentUser = null; // { usuario, rol } — rol: 'ADMIN' | 'EDITOR_LIMITADO' | 'LECTURA'
+let movimientos = [];
+let movSort = { col:'created_at', dir:-1 };
+const TABLE_MOV = 'movimientos';
+
 // ══════════════════════════════════════════════════════
 //  NAV
 // ══════════════════════════════════════════════════════
 function showPage(id, el) {
+  if (id === 'movimientos' && !tienePermiso('ver_movimientos')) { toast('Solo el administrador puede ver este módulo','error'); return; }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
@@ -739,6 +804,7 @@ function showPage(id, el) {
   if (id === 'data') renderDataTable();
   if (id === 'logistica') renderLogTable();
   if (id === 'marca') marcaInit();
+  if (id === 'movimientos') loadMovimientos();
 }
 
 // ══════════════════════════════════════════════════════
@@ -796,6 +862,7 @@ function handleDrop(e) {
 }
 
 async function handleFiles(files) {
+  if (!tienePermiso('subir')) { toast('No tienes permiso para subir archivos','error'); return; }
   if (!files?.length) return;
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   files.length === 1 ? await processSingle(files[0]) : await processBulk(files);
@@ -814,6 +881,7 @@ async function processSingle(file) {
     if (saved===0 && dupes>0) toast(`⚠️ ${dupes} fila(s) ya existían — no se importó nada`, 'error');
     else if (dupes>0) toast(`✓ ${saved} importada(s) · ${dupes} duplicada(s) ignorada(s)`,'');
     else toast(`✓ ${saved} fila(s) importada(s) correctamente`, 'success');
+    if (saved>0) logMovimiento('Órdenes', 'Importar PDF', `${file.name} → ${saved} fila(s) nueva(s)`);
     setTimeout(() => showProgress(false), 700);
   } catch(e) { showProgress(false); toast('Error: ' + e.message, 'error'); }
 }
@@ -860,6 +928,7 @@ async function processBulk(files) {
     sumEl.textContent=`${done+errors}/${files.length} — ${totalRows} filas nuevas`;
   }
   toast(`Masivo: ${done} archivos, ${totalRows} filas nuevas${errors?' ('+errors+' errores)':''}`, errors?'':'success');
+  if (totalRows>0) logMovimiento('Órdenes', 'Importar PDF masivo', `${done} archivo(s) → ${totalRows} fila(s) nueva(s)`);
 }
 
 async function extractRows(file, onProgress) {
@@ -929,7 +998,7 @@ function mkRow(item,fecha,sku,d1,d2,qty,oc,ofm,ofi,cli,area) {
     cantidad:parseInt(qty)||0, oc_cliente:oc.trim(), of_mch:ofm.trim(),
     of_interna:ofi.trim(), cliente:cli.trim(), area:area.trim(),
     estado:'Pendiente', fecha_entrega:addWorkdays(iso,6),
-    fecha_ingreso:null, fecha_termino:null, comentarios:'' };
+    fecha_ingreso:null, fecha_termino:null, msteel:'Pendiente' };
 }
 
 
@@ -975,20 +1044,31 @@ async function saveOrder(row) {
 }
 
 async function updateEstado(id, value) {
+  if (!tienePermiso('ordenes_fechas_estado')) { toast('No tienes permiso para esta acción','error'); renderOrdTable(); return; }
+  const prev = orders.find(o=>o.id===id);
   orders = orders.map(o=>o.id===id?{...o,estado:value}:o);
   if (sbClient) await sbClient.from(TABLE).update({estado:value}).eq('id',id);
+  logMovimiento('Órdenes', 'Editar Estado', `SKU ${prev?.sku||id}: ${prev?.estado||''} → ${value}`);
 }
 
 async function updateField(id, field, value) {
+  const esMsteel = field === 'msteel';
+  const permisoOk = esMsteel ? tienePermiso('ordenes_msteel') : tienePermiso('ordenes_fechas_estado');
+  if (!permisoOk) { toast('No tienes permiso para esta acción','error'); renderOrdTable(); return; }
+  const prev = orders.find(o=>o.id===id);
   orders = orders.map(o=>o.id===id?{...o,[field]:value}:o);
   if (sbClient) await sbClient.from(TABLE).update({[field]:value||null}).eq('id',id);
+  logMovimiento('Órdenes', 'Editar '+field, `SKU ${prev?.sku||id}: ${field} ${prev?.[field]||''} → ${value}`);
 }
 
 async function deleteOrder(id) {
+  if (!tienePermiso('eliminar')) { toast('No tienes permiso para eliminar','error'); return; }
   if (!confirm('¿Eliminar esta orden?')) return;
+  const prev = orders.find(o=>o.id===id);
   orders = orders.filter(o=>o.id!==id);
   if (sbClient) await sbClient.from(TABLE).delete().eq('id',id);
   renderOrdTable(); toast('Orden eliminada','success');
+  logMovimiento('Órdenes', 'Eliminar', `SKU ${prev?.sku||id} · OF Interna ${prev?.of_interna||''}`);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1042,8 +1122,13 @@ function renderOrdTable() {
   }
 
   const today = new Date().toISOString().slice(0,10);
+  const puedeFechasEstado = currentUser && (currentUser.rol==='ADMIN' || currentUser.rol==='EDITOR_LIMITADO');
+  const puedeMsteel       = currentUser && currentUser.rol==='ADMIN';
+  const puedeBorrar        = currentUser && currentUser.rol==='ADMIN';
+  const dis = (cond) => cond ? '' : 'disabled';
   tbody.innerHTML = flt.map((o,i) => {
     const ec = 'est-'+(o.estado||'Pendiente');
+    const mc = 'est-'+(o.msteel||'Pendiente');
     const vencida = o.estado!=='Entregado' && o.fecha_entrega && o.fecha_entrega < today;
     const proxima = o.estado!=='Entregado' && o.fecha_entrega && o.fecha_entrega >= today &&
                     (new Date(o.fecha_entrega)-new Date())/(1000*60*60*24) <= 2;
@@ -1063,20 +1148,32 @@ function renderOrdTable() {
       <td style="font-weight:500;">${esc(o.cliente)}</td>
       <td><span style="background:#e0e7ff;color:#3730a3;font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;">${esc(o.area)}</span></td>
       <td>
-        <select class="estado-select ${ec}" onchange="onEstadoChange(this,'${o.id}')">
+        <select class="estado-select ${ec}" onchange="onEstadoChange(this,'${o.id}')" ${dis(puedeFechasEstado)}>
           <option${o.estado==='Pendiente'?' selected':''}>Pendiente</option>
           <option${o.estado==='Parcial'?' selected':''}>Parcial</option>
           <option${o.estado==='Entregado'?' selected':''}>Entregado</option>
         </select>
       </td>
-      <td><input type="date" class="fi${vencida?' vencida-date':''}" value="${o.fecha_entrega||''}" onchange="updateField('${o.id}','fecha_entrega',this.value)" title="6 días hábiles"/></td>
-      <td><input type="date" class="fi" value="${o.fecha_ingreso||''}" onchange="updateField('${o.id}','fecha_ingreso',this.value)"/></td>
-      <td><input type="date" class="fi" value="${o.fecha_termino||''}" onchange="updateField('${o.id}','fecha_termino',this.value)"/></td>
-      <td><input type="text" class="fi cmt" value="${esc(o.comentarios||'')}" placeholder="Nota…" onchange="updateField('${o.id}','comentarios',this.value)"/></td>
+      <td><input type="date" class="fi${vencida?' vencida-date':''}" value="${o.fecha_entrega||''}" onchange="updateField('${o.id}','fecha_entrega',this.value)" title="6 días hábiles" ${dis(puedeFechasEstado)}/></td>
+      <td><input type="date" class="fi" value="${o.fecha_ingreso||''}" onchange="updateField('${o.id}','fecha_ingreso',this.value)" ${dis(puedeFechasEstado)}/></td>
+      <td><input type="date" class="fi" value="${o.fecha_termino||''}" onchange="updateField('${o.id}','fecha_termino',this.value)" ${dis(puedeFechasEstado)}/></td>
+      <td>
+        <select class="estado-select ${mc}" onchange="onMsteelChange(this,'${o.id}')" ${dis(puedeMsteel)}>
+          <option${o.msteel==='Pendiente'?' selected':''}>Pendiente</option>
+          <option${o.msteel==='Parcial'?' selected':''}>Parcial</option>
+          <option${o.msteel==='Entregado'?' selected':''}>Entregado</option>
+        </select>
+      </td>
       <td><button class="btn-print-of" onclick="printOF('${o.id}')" title="Imprimir OF">🖨 OF</button></td>
-      <td><button class="btn-del" onclick="confirmDelete('${o.id}')">✕</button></td>
+      <td>${puedeBorrar?`<button class="btn-del" onclick="confirmDelete('${o.id}')">✕</button>`:''}</td>
     </tr>`;
   }).join('');
+}
+
+function onMsteelChange(sel, id) {
+  const v = sel.value;
+  sel.className = 'estado-select est-'+v;
+  updateField(id, 'msteel', v);
 }
 
 function onEstadoChange(sel, id) {
@@ -1105,6 +1202,7 @@ function handleDropLog(e) {
 }
 
 async function handleFilesLog(files) {
+  if (!tienePermiso('subir')) { toast('No tienes permiso para subir archivos','error'); return; }
   if (!files?.length) return;
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   files.length === 1 ? await processSingleLog(files[0]) : await processBulkLog(files);
@@ -1123,6 +1221,7 @@ async function processSingleLog(file) {
     if (saved===0 && dupes>0) toast(`⚠️ ${dupes} fila(s) ya existían — no se importó nada`, 'error');
     else if (dupes>0) toast(`✓ ${saved} importada(s) · ${dupes} duplicada(s) ignorada(s)`,'');
     else toast(`✓ ${saved} fila(s) importada(s) correctamente`, 'success');
+    if (saved>0) logMovimiento('OF Logística', 'Importar PDF', `${file.name} → ${saved} fila(s) nueva(s)`);
     setTimeout(() => showProgress(false, 'log'), 700);
   } catch(e) { showProgress(false, 'log'); toast('Error: ' + e.message, 'error'); }
 }
@@ -1169,6 +1268,7 @@ async function processBulkLog(files) {
     sumEl.textContent=`${done+errors}/${files.length} — ${totalRows} filas nuevas`;
   }
   toast(`Masivo: ${done} archivos, ${totalRows} filas nuevas${errors?' ('+errors+' errores)':''}`, errors?'':'success');
+  if (totalRows>0) logMovimiento('OF Logística', 'Importar PDF masivo', `${done} archivo(s) → ${totalRows} fila(s) nueva(s)`);
 }
 
 async function extractRowsLog(file, onProgress) {
@@ -1250,19 +1350,28 @@ async function saveOrderLog(row) {
 }
 
 async function updateEstadoLog(id, value) {
+  if (!tienePermiso('logistica_editar')) { toast('No tienes permiso para esta acción','error'); renderLogTable(); return; }
+  const prev = logOrders.find(o=>o.id===id);
   logOrders = logOrders.map(o=>o.id===id?{...o,estado:value}:o);
   if (sbClient) await sbClient.from(TABLE_LOG).update({estado:value}).eq('id',id);
+  logMovimiento('OF Logística', 'Editar Estado', `SKU ${prev?.sku||id}: ${prev?.estado||''} → ${value}`);
 }
 
 async function updateFieldLog(id, field, value) {
+  if (!tienePermiso('logistica_editar')) { toast('No tienes permiso para esta acción','error'); renderLogTable(); return; }
+  const prev = logOrders.find(o=>o.id===id);
   logOrders = logOrders.map(o=>o.id===id?{...o,[field]:value}:o);
   if (sbClient) await sbClient.from(TABLE_LOG).update({[field]:value||null}).eq('id',id);
+  logMovimiento('OF Logística', 'Editar '+field, `SKU ${prev?.sku||id}: ${field} ${prev?.[field]||''} → ${value}`);
 }
 
 async function deleteOrderLog(id) {
+  if (!tienePermiso('eliminar')) { toast('No tienes permiso para eliminar','error'); return; }
+  const prev = logOrders.find(o=>o.id===id);
   logOrders = logOrders.filter(o=>o.id!==id);
   if (sbClient) await sbClient.from(TABLE_LOG).delete().eq('id',id);
   renderLogTable(); toast('Registro eliminado','success');
+  logMovimiento('OF Logística', 'Eliminar', `SKU ${prev?.sku||id} · OF Interna ${prev?.of_interna||''}`);
 }
 
 function confirmDeleteLog(id) {
@@ -1318,6 +1427,9 @@ function renderLogTable() {
     return;
   }
 
+  const puedeEditarLog = tienePermiso('logistica_editar');
+  const puedeBorrarLog = tienePermiso('eliminar');
+  const disL = (cond) => cond ? '' : 'disabled';
   tbody.innerHTML = flt.map((o,i) => {
     const ec = 'est-'+(o.estado||'Pendiente');
     return `<tr>
@@ -1333,15 +1445,15 @@ function renderLogTable() {
       <td style="font-weight:500;">${esc(o.cliente)}</td>
       <td><span style="background:#e0e7ff;color:#3730a3;font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;">${esc(o.area)}</span></td>
       <td>
-        <select class="estado-select ${ec}" onchange="onEstadoChangeLog(this,'${o.id}')">
+        <select class="estado-select ${ec}" onchange="onEstadoChangeLog(this,'${o.id}')" ${disL(puedeEditarLog)}>
           <option${o.estado==='Pendiente'?' selected':''}>Pendiente</option>
           <option${o.estado==='Parcial'?' selected':''}>Parcial</option>
           <option${o.estado==='Entregado'?' selected':''}>Entregado</option>
         </select>
       </td>
-      <td><input type="text" class="fi cmt" value="${esc(o.comentarios||'')}" placeholder="Nota…" onchange="updateFieldLog('${o.id}','comentarios',this.value)"/></td>
+      <td><input type="text" class="fi cmt" value="${esc(o.comentarios||'')}" placeholder="Nota…" onchange="updateFieldLog('${o.id}','comentarios',this.value)" ${disL(puedeEditarLog)}/></td>
       <td><button class="btn-print-of" onclick="printOFLog('${o.id}')" title="Imprimir OF">🖨 OF</button></td>
-      <td><button class="btn-del" onclick="confirmDeleteLog('${o.id}')">✕</button></td>
+      <td>${puedeBorrarLog?`<button class="btn-del" onclick="confirmDeleteLog('${o.id}')">✕</button>`:''}</td>
     </tr>`;
   }).join('');
 }
@@ -1367,6 +1479,7 @@ function exportCSVLog() {
 }
 
 async function handleExcelLog(file) {
+  if (!tienePermiso('subir')) { toast('No tienes permiso para subir archivos','error'); return; }
   if (!file) return;
   showProgress(true, 'log');
   setProgress(10, `Leyendo ${file.name}…`, 'log');
@@ -1454,6 +1567,7 @@ async function handleExcelLog(file) {
     if (saved===0 && dupes>0) toast(`⚠️ ${dupes} fila(s) ya existían`, 'error');
     else if (dupes>0) toast(`✓ ${saved} importada(s) · ${dupes} duplicada(s) ignorada(s)${errors?' · '+errors+' errores':''}`,'');
     else toast(`✓ ${saved} fila(s) de Excel importada(s)`, 'success');
+    if (saved>0) logMovimiento('OF Logística', 'Importar Excel', `${file.name} → ${saved} fila(s) nueva(s)`);
     setTimeout(()=>showProgress(false, 'log'), 700);
   } catch(e) {
     showProgress(false, 'log');
@@ -1821,7 +1935,7 @@ function renderDataTable() {
     <td style="font-size:11px;">${fmt(d.fecha_entrega)}</td>
     <td style="font-size:11px;">${fmt(d.fecha_ingreso)}</td>
     <td style="font-size:11px;">${fmt(d.fecha_termino)}</td>
-    <td style="color:var(--text2);font-size:11px;font-style:italic;">${esc(d.comentarios)}</td>
+    <td style="color:var(--text2);font-size:11px;"><span class="dbadge ${d.msteel||'Pendiente'}">${esc(d.msteel||'Pendiente')}</span></td>
   </tr>`).join('');
   document.getElementById('data-footer').textContent=`${rows.length} registros`;
 }
@@ -1831,8 +1945,8 @@ function renderDataTable() {
 // ══════════════════════════════════════════════════════
 function exportCSVOrd() {
   if (!orders.length) { toast('Sin datos','error'); return; }
-  const h=['#','Fecha','SKU','Desc1','Desc2','Cantidad','OC Cliente','OF MCH','OF Interna','Cliente','Área','Estado','F.Entrega','F.Ingreso','F.Término','Comentarios'];
-  const rows=orders.map((o,i)=>[i+1,fmt(o.fecha),o.sku,o.descripcion1,o.descripcion2,o.cantidad,o.oc_cliente,o.of_mch,o.of_interna,o.cliente,o.area,o.estado,fmt(o.fecha_entrega),fmt(o.fecha_ingreso),fmt(o.fecha_termino),o.comentarios||''].map(v=>`"${v}"`).join(','));
+  const h=['#','Fecha','SKU','Desc1','Desc2','Cantidad','OC Cliente','OF MCH','OF Interna','Cliente','Área','Estado','F.Entrega','F.Ingreso','F.Término','Msteel'];
+  const rows=orders.map((o,i)=>[i+1,fmt(o.fecha),o.sku,o.descripcion1,o.descripcion2,o.cantidad,o.oc_cliente,o.of_mch,o.of_interna,o.cliente,o.area,o.estado,fmt(o.fecha_entrega),fmt(o.fecha_ingreso),fmt(o.fecha_termino),o.msteel||'Pendiente'].map(v=>`"${v}"`).join(','));
   dlCSV([h.join(','),...rows].join('\n'),'ordenes_msteel.csv');
 }
 
@@ -2206,6 +2320,144 @@ function checkVencidasNotify() {
 }
 
 // ══════════════════════════════════════════════════════
+//  AUTENTICACIÓN Y PERMISOS
+// ══════════════════════════════════════════════════════
+// Roles:
+//   ADMIN           → acceso total + ve el módulo Movimientos
+//   EDITOR_LIMITADO → en Órdenes solo puede editar Estado y las fechas
+//                     (Entrega/Ingreso/Término). Todo lo demás, solo lectura.
+//   LECTURA         → solo lectura en todos los módulos.
+function tienePermiso(accion) {
+  if (!currentUser) return false;
+  const rol = currentUser.rol;
+  switch (accion) {
+    case 'ordenes_fechas_estado': return rol==='ADMIN' || rol==='EDITOR_LIMITADO';
+    case 'ordenes_msteel':        return rol==='ADMIN';
+    case 'logistica_editar':      return rol==='ADMIN';
+    case 'eliminar':              return rol==='ADMIN';
+    case 'subir':                 return rol==='ADMIN';
+    case 'ver_movimientos':       return rol==='ADMIN';
+    default:                      return false;
+  }
+}
+
+function rolLabel(rol) {
+  return rol==='ADMIN' ? 'Administrador' : rol==='EDITOR_LIMITADO' ? 'Editor limitado' : rol==='LECTURA' ? 'Solo lectura' : '';
+}
+
+function mostrarLogin() {
+  document.getElementById('login-overlay').style.display = 'flex';
+  document.getElementById('login-usuario').value = '';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-error').textContent = '';
+  setTimeout(()=>document.getElementById('login-usuario').focus(), 50);
+}
+
+function ocultarLogin() {
+  document.getElementById('login-overlay').style.display = 'none';
+}
+
+async function intentarLogin() {
+  const usuario  = document.getElementById('login-usuario').value.trim().toUpperCase();
+  const password = document.getElementById('login-password').value;
+  const errEl    = document.getElementById('login-error');
+  errEl.textContent = '';
+  if (!usuario || !password) { errEl.textContent = 'Ingresa usuario y contraseña'; return; }
+  if (!sbClient) { errEl.textContent = 'Conectando con la base de datos, espera un momento e intenta de nuevo…'; return; }
+  try {
+    const { data, error } = await sbClient.rpc('verificar_login', { p_usuario: usuario, p_password: password });
+    if (error) { errEl.textContent = 'Error de conexión: ' + error.message; return; }
+    if (!data || !data.length) { errEl.textContent = 'Usuario o contraseña incorrectos'; return; }
+    currentUser = { usuario: data[0].usuario, rol: data[0].rol };
+    localStorage.setItem('msteel_user', JSON.stringify(currentUser));
+    ocultarLogin();
+    aplicarPermisos();
+    toast(`Bienvenido, ${currentUser.usuario}`, 'success');
+    logMovimiento('Sistema', 'Inicio de sesión', `${currentUser.usuario} (${rolLabel(currentUser.rol)})`);
+  } catch(e) { errEl.textContent = 'Error: ' + e.message; }
+}
+
+function cerrarSesion() {
+  if (currentUser) logMovimiento('Sistema', 'Cierre de sesión', currentUser.usuario);
+  currentUser = null;
+  localStorage.removeItem('msteel_user');
+  mostrarLogin();
+}
+
+function aplicarPermisos() {
+  const rol = currentUser?.rol;
+
+  const navMov = document.getElementById('nav-movimientos');
+  if (navMov) navMov.style.display = (rol==='ADMIN') ? '' : 'none';
+
+  const puedeSubir = rol==='ADMIN';
+  ['upload-zone','upload-zone-log'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el) el.style.display = puedeSubir ? '' : 'none';
+  });
+
+  const badge = document.getElementById('user-badge');
+  if (badge && currentUser) badge.textContent = `${currentUser.usuario} · ${rolLabel(rol)}`;
+
+  // Si un usuario sin permiso quedó parado en la página de Movimientos, lo regresamos a Órdenes
+  if (rol!=='ADMIN' && document.getElementById('page-movimientos')?.classList.contains('active')) {
+    showPage('ordenes', document.querySelector('.nav-tab'));
+  }
+
+  renderOrdTable();
+  renderLogTable();
+}
+
+async function logMovimiento(modulo, accion, detalle) {
+  if (!sbClient || !currentUser) return;
+  try {
+    await sbClient.from(TABLE_MOV).insert([{ usuario: currentUser.usuario, modulo, accion, detalle }]);
+  } catch(e) { console.warn('No se pudo registrar el movimiento:', e); }
+}
+
+async function loadMovimientos() {
+  if (!sbClient) return;
+  const { data, error } = await sbClient.from(TABLE_MOV).select('*').order('created_at',{ascending:false}).limit(1000);
+  if (error) { toast('Error cargando movimientos: '+error.message, 'error'); return; }
+  movimientos = data || [];
+  renderMovimientosTable();
+}
+
+function renderMovimientosTable() {
+  const userEl = document.getElementById('mov-filter-usuario');
+  const modEl  = document.getElementById('mov-filter-modulo');
+  if (!userEl || !modEl) return;
+
+  const usuarios = [...new Set(movimientos.map(m=>m.usuario).filter(Boolean))].sort();
+  const modulos  = [...new Set(movimientos.map(m=>m.modulo).filter(Boolean))].sort();
+  const curU = userEl.value, curM = modEl.value;
+  userEl.innerHTML = '<option value="">Todos los usuarios</option>' + usuarios.map(u=>`<option${u===curU?' selected':''}>${u}</option>`).join('');
+  modEl.innerHTML  = '<option value="">Todos los módulos</option>' + modulos.map(m=>`<option${m===curM?' selected':''}>${m}</option>`).join('');
+
+  const q  = (document.getElementById('mov-search')?.value||'').toLowerCase().trim();
+  const fU = userEl.value, fM = modEl.value;
+
+  let flt = [...movimientos];
+  if (fU) flt = flt.filter(m=>m.usuario===fU);
+  if (fM) flt = flt.filter(m=>m.modulo===fM);
+  if (q)  flt = flt.filter(m=>[m.usuario,m.modulo,m.accion,m.detalle].some(v=>String(v||'').toLowerCase().includes(q)));
+
+  document.getElementById('count-label-mov').textContent = `— ${flt.length} registro${flt.length!==1?'s':''}`;
+  const tbody = document.getElementById('mov-body');
+  if (!flt.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><p>Sin movimientos para mostrar</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = flt.map(m => `<tr>
+    <td style="font-size:11px;color:var(--text2);white-space:nowrap;">${m.created_at ? new Date(m.created_at).toLocaleString('es-CL') : ''}</td>
+    <td style="font-weight:600;">${esc(m.usuario)}</td>
+    <td><span style="background:#e0e7ff;color:#3730a3;font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;">${esc(m.modulo)}</span></td>
+    <td>${esc(m.accion)}</td>
+    <td style="color:var(--text2);font-size:12px;">${esc(m.detalle)}</td>
+  </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════════════
 const SB_URL = 'https://umdeayggxgnmlpibybpx.supabase.co';
@@ -2221,6 +2473,18 @@ window.addEventListener('load', () => {
 
   document.getElementById('sb-url').addEventListener('change', e => localStorage.setItem('sb_url', e.target.value));
   document.getElementById('sb-key').addEventListener('change', e => localStorage.setItem('sb_key', e.target.value));
+
+  // Sesión guardada
+  try {
+    const saved = JSON.parse(localStorage.getItem('msteel_user')||'null');
+    if (saved && saved.usuario && saved.rol) {
+      currentUser = saved;
+      ocultarLogin();
+      aplicarPermisos();
+    } else {
+      mostrarLogin();
+    }
+  } catch(e) { mostrarLogin(); }
 });
 
 // ══════════════════════════════════════════════════════
@@ -2290,6 +2554,7 @@ function downloadTemplate() {
 }
 
 async function handleExcel(file) {
+  if (!tienePermiso('subir')) { toast('No tienes permiso para subir archivos','error'); return; }
   if (!file) return;
   showProgress(true);
   setProgress(10, `Leyendo ${file.name}…`);
@@ -2373,7 +2638,7 @@ async function handleExcel(file) {
         fecha_entrega: fechaISO ? addWorkdays(fechaISO, 6) : null,
         fecha_ingreso: null,
         fecha_termino: null,
-        comentarios:   '',
+        msteel:        'Pendiente',
       };
       if (!row.sku && !row.descripcion1) continue;
       try {
@@ -2386,6 +2651,7 @@ async function handleExcel(file) {
     if (saved===0 && dupes>0) toast(`⚠️ ${dupes} fila(s) ya existían`, 'error');
     else if (dupes>0) toast(`✓ ${saved} importada(s) · ${dupes} duplicada(s) ignorada(s)${errors?' · '+errors+' errores':''}`,'');
     else toast(`✓ ${saved} fila(s) de Excel importada(s)`, 'success');
+    if (saved>0) logMovimiento('Órdenes', 'Importar Excel', `${file.name} → ${saved} fila(s) nueva(s)`);
     setTimeout(()=>showProgress(false), 700);
   } catch(e) {
     showProgress(false);
@@ -2472,8 +2738,8 @@ async function printOF(id) {
       <div class="of-field"><div class="of-label">Cliente</div><div class="of-value">${o.cliente||''}</div></div>
       <div class="of-field"><div class="of-label">Área</div><div class="of-value"><span style="background:#e0e7ff;color:#3730a3;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;">${o.area||''}</span></div></div>
       <div class="of-field"><div class="of-label">Fecha Entrega</div><div class="of-value mono" style="font-size:14px;">${fmt(o.fecha_entrega)}</div></div>
+      <div class="of-field"><div class="of-label">Msteel</div><div class="of-value"><span class="estado-badge est-${o.msteel||'Pendiente'}">${o.msteel||'Pendiente'}</span></div></div>
     </div>
-    ${o.comentarios ? `<div style="margin-top:14px;padding:10px 14px;background:#f8fafc;border-radius:6px;border-left:3px solid #0F6E56;"><div class="of-label" style="margin-bottom:3px;">Comentarios</div><div style="font-size:13px;">${o.comentarios}</div></div>` : ''}
     <div class="sigs">
       <div class="sig"><div class="sig-line">Entregado MSTEEL</div></div>
       <div class="sig"><div class="sig-line">Aprobado por Calidad</div></div>
