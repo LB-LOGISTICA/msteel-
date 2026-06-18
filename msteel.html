@@ -44,7 +44,7 @@ header .hbadge{background:rgba(255,255,255,.18);color:#fff;font-size:10px;paddin
 .hdr-btn:hover{background:rgba(255,255,255,.25);}
 
 /* ── BG EDITOR PANEL ── */
-#bg-panel{display:none;position:fixed;top:70px;right:16px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:16px;width:260px;z-index:300;box-shadow:0 8px 32px rgba(0,0,0,.15);}
+#bg-panel{display:none;position:fixed;top:70px;right:16px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:16px;width:260px;z-index:10000;box-shadow:0 8px 32px rgba(0,0,0,.15);}
 #bg-panel h4{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
 #bg-panel h4 button{background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;line-height:1;}
 .bg-section{margin-bottom:12px;}
@@ -271,6 +271,9 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
       onkeydown="if(event.key==='Enter')intentarLogin()"/>
     <div id="login-error" style="color:#dc3545;font-size:12px;font-weight:600;min-height:16px;margin-bottom:10px;"></div>
     <button onclick="intentarLogin()" style="width:100%;background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;">Ingresar</button>
+    <div style="text-align:center;margin-top:14px;">
+      <button onclick="toggleBgPanel()" style="background:none;border:none;color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer;">🎨 Personalizar</button>
+    </div>
   </div>
 </div>
 
@@ -456,9 +459,9 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
         <th>OF Interna</th>
         <th onclick="sortOrd('cliente')" style="cursor:pointer;">Cliente ↕</th>
         <th onclick="sortOrd('area')" style="cursor:pointer;">Área ↕</th>
-        <th onclick="sortOrd('estado')" style="cursor:pointer;">Estado ↕</th>
+        <th onclick="sortOrd('estado')" style="cursor:pointer;">MSTEEL ↕</th>
         <th onclick="sortOrd('fecha_entrega')" style="cursor:pointer;">F. Entrega ↕</th>
-        <th>F. Ingreso</th><th>F. Término</th><th onclick="sortOrd('msteel')" style="cursor:pointer;">Msteel ↕</th><th>🖨</th><th></th>
+        <th>F. Ingreso</th><th>F. Término</th><th onclick="sortOrd('msteel')" style="cursor:pointer;">Logística ↕</th><th>🖨</th><th></th>
       </tr></thead>
       <tbody id="ord-body">
         <tr><td colspan="18"><div class="empty-state">
@@ -611,7 +614,7 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
   </div>
   <div class="chart-grid g3">
     <div class="chart-card"><h3>Cumplimiento de Entrega</h3><div class="ch-wrap donut"><canvas id="ch-cum"></canvas></div></div>
-    <div class="chart-card"><h3>Estado de Órdenes</h3><div class="ch-wrap donut"><canvas id="ch-estado"></canvas></div></div>
+    <div class="chart-card"><h3>MSTEEL de Órdenes</h3><div class="ch-wrap donut"><canvas id="ch-estado"></canvas></div></div>
     <div class="chart-card"><h3>Top Clientes × Cantidad</h3><div class="ch-wrap"><canvas id="ch-cliente"></canvas></div></div>
   </div>
   <div class="chart-card" style="margin-top:10px;">
@@ -659,11 +662,11 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
         <th onclick="sortData('of_interna')">OF Interna <span>↕</span></th>
         <th onclick="sortData('cliente')">Cliente <span>↕</span></th>
         <th onclick="sortData('area')">Área <span>↕</span></th>
-        <th onclick="sortData('estado')">Estado <span>↕</span></th>
+        <th onclick="sortData('estado')">MSTEEL <span>↕</span></th>
         <th onclick="sortData('fecha_entrega')">F. Entrega <span>↕</span></th>
         <th onclick="sortData('fecha_ingreso')">F. Ingreso <span>↕</span></th>
         <th onclick="sortData('fecha_termino')">F. Término <span>↕</span></th>
-        <th onclick="sortData('msteel')">Msteel <span>↕</span></th>
+        <th onclick="sortData('msteel')">Logística <span>↕</span></th>
       </tr></thead>
       <tbody id="data-body">
         <tr><td colspan="15"><div class="empty-state"><p>Conecta Supabase para ver los datos</p></div></td></tr>
@@ -1122,9 +1125,9 @@ function renderOrdTable() {
   }
 
   const today = new Date().toISOString().slice(0,10);
-  const puedeFechasEstado = currentUser && (currentUser.rol==='ADMIN' || currentUser.rol==='EDITOR_LIMITADO');
-  const puedeMsteel       = currentUser && currentUser.rol==='ADMIN';
-  const puedeBorrar        = currentUser && currentUser.rol==='ADMIN';
+  const puedeFechasEstado = tienePermiso('ordenes_fechas_estado');
+  const puedeMsteel       = tienePermiso('ordenes_msteel');
+  const puedeBorrar       = tienePermiso('eliminar');
   const dis = (cond) => cond ? '' : 'disabled';
   tbody.innerHTML = flt.map((o,i) => {
     const ec = 'est-'+(o.estado||'Pendiente');
@@ -1945,7 +1948,7 @@ function renderDataTable() {
 // ══════════════════════════════════════════════════════
 function exportCSVOrd() {
   if (!orders.length) { toast('Sin datos','error'); return; }
-  const h=['#','Fecha','SKU','Desc1','Desc2','Cantidad','OC Cliente','OF MCH','OF Interna','Cliente','Área','Estado','F.Entrega','F.Ingreso','F.Término','Msteel'];
+  const h=['#','Fecha','SKU','Desc1','Desc2','Cantidad','OC Cliente','OF MCH','OF Interna','Cliente','Área','MSTEEL','F.Entrega','F.Ingreso','F.Término','Logística'];
   const rows=orders.map((o,i)=>[i+1,fmt(o.fecha),o.sku,o.descripcion1,o.descripcion2,o.cantidad,o.oc_cliente,o.of_mch,o.of_interna,o.cliente,o.area,o.estado,fmt(o.fecha_entrega),fmt(o.fecha_ingreso),fmt(o.fecha_termino),o.msteel||'Pendiente'].map(v=>`"${v}"`).join(','));
   dlCSV([h.join(','),...rows].join('\n'),'ordenes_msteel.csv');
 }
@@ -2181,10 +2184,27 @@ function uploadLogo(input) {
   reader.readAsDataURL(file);
 }
 
+function shadeColor(hex, percent) {
+  hex = String(hex||'#0F6E56').replace('#','');
+  if (hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+  const num = parseInt(hex,16);
+  let r = (num >> 16) + Math.round(255*percent/100);
+  let g = ((num >> 8) & 0x00FF) + Math.round(255*percent/100);
+  let b = (num & 0x0000FF) + Math.round(255*percent/100);
+  r = Math.min(255,Math.max(0,r)); g = Math.min(255,Math.max(0,g)); b = Math.min(255,Math.max(0,b));
+  return '#' + ((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+function updateLoginBg(color) {
+  const overlay = document.getElementById('login-overlay');
+  if (overlay) overlay.style.background = `linear-gradient(135deg, ${color}, ${shadeColor(color,25)})`;
+}
+
 function setHeaderColor(color) {
   document.getElementById('main-header').style.background = color;
   document.getElementById('hdr-custom-color').value = color;
   localStorage.setItem('msteel_hdr_color', color);
+  updateLoginBg(color);
 }
 
 function toggleBgPanel() {
@@ -2224,6 +2244,7 @@ function resetBg() {
   localStorage.removeItem('msteel_bg_image');
   localStorage.removeItem('msteel_hdr_color');
   document.querySelectorAll('.bg-swatch').forEach(s => s.classList.remove('active'));
+  updateLoginBg('#0F6E56');
 }
 
 function loadSavedAppearance() {
@@ -2241,6 +2262,7 @@ function loadSavedAppearance() {
     const hdrInput = document.getElementById('hdr-custom-color');
     if (hdrInput) hdrInput.value = hdrColor;
   }
+  updateLoginBg(hdrColor || '#0F6E56');
   // Background
   const bgImg   = localStorage.getItem('msteel_bg_image');
   const bgColor = localStorage.getItem('msteel_bg_color');
@@ -2324,18 +2346,19 @@ function checkVencidasNotify() {
 // ══════════════════════════════════════════════════════
 // Roles:
 //   ADMIN           → acceso total + ve el módulo Movimientos
-//   EDITOR_LIMITADO → en Órdenes solo puede editar Estado y las fechas
-//                     (Entrega/Ingreso/Término). Todo lo demás, solo lectura.
+//   EDITOR_LIMITADO → acceso total para editar Órdenes y OF Logística
+//                     (estado, fechas, MSTEEL, Logística, subir, eliminar),
+//                     pero NO puede ver el módulo Movimientos.
 //   LECTURA         → solo lectura en todos los módulos.
 function tienePermiso(accion) {
   if (!currentUser) return false;
   const rol = currentUser.rol;
   switch (accion) {
     case 'ordenes_fechas_estado': return rol==='ADMIN' || rol==='EDITOR_LIMITADO';
-    case 'ordenes_msteel':        return rol==='ADMIN';
-    case 'logistica_editar':      return rol==='ADMIN';
-    case 'eliminar':              return rol==='ADMIN';
-    case 'subir':                 return rol==='ADMIN';
+    case 'ordenes_msteel':        return rol==='ADMIN' || rol==='EDITOR_LIMITADO';
+    case 'logistica_editar':      return rol==='ADMIN' || rol==='EDITOR_LIMITADO';
+    case 'eliminar':              return rol==='ADMIN' || rol==='EDITOR_LIMITADO';
+    case 'subir':                 return rol==='ADMIN' || rol==='EDITOR_LIMITADO';
     case 'ver_movimientos':       return rol==='ADMIN';
     default:                      return false;
   }
@@ -2390,7 +2413,7 @@ function aplicarPermisos() {
   const navMov = document.getElementById('nav-movimientos');
   if (navMov) navMov.style.display = (rol==='ADMIN') ? '' : 'none';
 
-  const puedeSubir = rol==='ADMIN';
+  const puedeSubir = tienePermiso('subir');
   ['upload-zone','upload-zone-log'].forEach(id=>{
     const el = document.getElementById(id);
     if (el) el.style.display = puedeSubir ? '' : 'none';
@@ -2731,14 +2754,14 @@ async function printOF(id) {
       <div class="of-field"><div class="of-label">Descripción Principal</div><div class="of-value">${o.descripcion1||''}</div></div>
       <div class="of-field"><div class="of-label">Descripción Secundaria</div><div class="of-value" style="font-size:14px;">${o.descripcion2||''}</div></div>
       <div class="of-field"><div class="of-label">Fecha</div><div class="of-value mono" style="font-size:14px;">${fmt(o.fecha)}</div></div>
-      <div class="of-field"><div class="of-label">Estado</div><div class="of-value"><span class="estado-badge est-${o.estado||'Pendiente'}">${o.estado||'Pendiente'}</span></div></div>
+      <div class="of-field"><div class="of-label">MSTEEL</div><div class="of-value"><span class="estado-badge est-${o.estado||'Pendiente'}">${o.estado||'Pendiente'}</span></div></div>
       <div class="of-field"><div class="of-label">OC Cliente</div><div class="of-value mono" style="font-size:14px;">${o.oc_cliente||''}</div></div>
       <div class="of-field"><div class="of-label">OF MCH</div><div class="of-value mono" style="font-size:14px;">${o.of_mch||''}</div></div>
       <div class="of-field"><div class="of-label">OF Interna</div><div class="of-value mono" style="font-size:14px;">${o.of_interna||''}</div></div>
       <div class="of-field"><div class="of-label">Cliente</div><div class="of-value">${o.cliente||''}</div></div>
       <div class="of-field"><div class="of-label">Área</div><div class="of-value"><span style="background:#e0e7ff;color:#3730a3;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;">${o.area||''}</span></div></div>
       <div class="of-field"><div class="of-label">Fecha Entrega</div><div class="of-value mono" style="font-size:14px;">${fmt(o.fecha_entrega)}</div></div>
-      <div class="of-field"><div class="of-label">Msteel</div><div class="of-value"><span class="estado-badge est-${o.msteel||'Pendiente'}">${o.msteel||'Pendiente'}</span></div></div>
+      <div class="of-field"><div class="of-label">Logística</div><div class="of-value"><span class="estado-badge est-${o.msteel||'Pendiente'}">${o.msteel||'Pendiente'}</span></div></div>
     </div>
     <div class="sigs">
       <div class="sig"><div class="sig-line">Entregado MSTEEL</div></div>
