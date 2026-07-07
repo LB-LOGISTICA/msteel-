@@ -2090,7 +2090,18 @@ async function marcaRefreshPreview() {
           </div>
         </div>
         <div class="marca-title">Identificación de Producto</div>
-        <div style="color:rgba(255,255,255,.7);font-size:12px;font-weight:500;letter-spacing:.5px;margin-top:2px;">OF Interna: <strong style="color:#fff;">${esc(marcaSelected.of_interna)}</strong>${marcaSelected._src==='log'?' <span style="opacity:.85;">· OF Logística</span>':''}</div>
+        <!-- Descripción Principal en el header, grande y visible -->
+        <div style="margin-top:10px;">
+          <div style="color:rgba(255,255,255,.6);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Descripción Principal</div>
+          <div style="color:#fff;font-size:26px;font-weight:900;line-height:1.1;letter-spacing:.3px;text-shadow:0 1px 4px rgba(0,0,0,.18);">${esc(marcaSelected.descripcion1)}</div>
+        </div>
+        <!-- Cantidad destacada bajo la descripción -->
+        <div style="margin-top:10px;display:flex;align-items:baseline;gap:8px;">
+          <div style="color:rgba(255,255,255,.6);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cantidad:</div>
+          <div style="color:#fff;font-size:36px;font-weight:900;line-height:1;text-shadow:0 2px 6px rgba(0,0,0,.2);">${qty}</div>
+          <div style="color:rgba(255,255,255,.7);font-size:14px;font-weight:600;">unidades</div>
+        </div>
+        ${marcaSelected._src==='log'?'<div style="color:rgba(255,255,255,.6);font-size:10px;font-weight:700;margin-top:6px;letter-spacing:.5px;">· OF Logística</div>':''}
       </div>
       <div class="marca-top-qr">
         <div id="qr-container" style="width:90px;height:90px;border-radius:4px;overflow:hidden;background:#fff;"></div>
@@ -2103,16 +2114,8 @@ async function marcaRefreshPreview() {
         <span class="mf-value big mono">${esc(marcaSelected.sku)}</span>
       </div>
       <div class="marca-field">
-        <span class="mf-label">Cantidad</span>
-        <span class="mf-value big" style="color:#1a202c;">${qty} <span style="font-size:13px;font-weight:500;color:#64748b;">unidades</span></span>
-      </div>
-      <div class="marca-field">
-        <span class="mf-label">Descripción Principal</span>
-        <span class="mf-value">${esc(marcaSelected.descripcion1)}</span>
-      </div>
-      <div class="marca-field">
         <span class="mf-label">Descripción Secundaria</span>
-        <span class="mf-value" style="font-size:13px;">${esc(marcaSelected.descripcion2)}</span>
+        <span class="mf-value" style="font-size:15px;">${esc(marcaSelected.descripcion2)}</span>
       </div>
       <div class="marca-field">
         <span class="mf-label">OC Cliente</span>
@@ -2124,7 +2127,7 @@ async function marcaRefreshPreview() {
       </div>
       <div class="marca-field">
         <span class="mf-label">OF Interna</span>
-        <span class="mf-value mono" style="font-size:16px;">${esc(marcaSelected.of_interna)}</span>
+        <span class="mf-value mono" style="font-size:19px;font-weight:800;">${esc(marcaSelected.of_interna)}</span>
       </div>
       <div class="marca-field">
         <span class="mf-label">Cliente</span>
@@ -2808,24 +2811,24 @@ async function printMarca() {
     body { font-family:Arial,sans-serif; background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     .marca-card  { width:100%; border-radius:10px; overflow:hidden; border:1px solid #e2e8f0; }
     .marca-top   { background:linear-gradient(135deg,#0F6E56 0%,#1D9E75 60%,#5DCAA5 100%); padding:22px 30px 18px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
-    .marca-top-left { display:flex; flex-direction:column; gap:6px; }
+    .marca-top-left { display:flex; flex-direction:column; gap:4px; }
     .marca-logo-row { display:flex; align-items:center; gap:10px; }
     .marca-logo-box { width:34px; height:34px; background:#fff; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
     .marca-brand    { color:#fff; font-size:20px; font-weight:800; letter-spacing:.5px; }
     .marca-subbrand { color:rgba(255,255,255,.75); font-size:11px; font-weight:500; letter-spacing:1px; text-transform:uppercase; }
-    .marca-title    { color:#fff; font-size:11px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; opacity:.85; margin-top:8px; }
-    .marca-top-qr   { background:#fff; border-radius:8px; padding:6px; display:flex; flex-direction:column; align-items:center; gap:3px; }
+    .marca-title    { color:#fff; font-size:11px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; opacity:.85; margin-top:6px; }
+    .marca-top-qr   { background:#fff; border-radius:8px; padding:6px; display:flex; flex-direction:column; align-items:center; gap:3px; flex-shrink:0; }
     .marca-top-qr span { font-size:9px; font-weight:700; color:#0F6E56; letter-spacing:.5px; }
     #qr-container img { width:90px; height:90px; display:block; border-radius:4px; }
-    .marca-body  { padding:18px 30px 22px; display:grid; grid-template-columns:1fr 1fr; }
-    .marca-field { padding:11px 0; border-bottom:1px solid #f1f5f9; display:flex; flex-direction:column; gap:3px; }
+    .marca-body  { padding:16px 30px 20px; display:grid; grid-template-columns:1fr 1fr; }
+    .marca-field { padding:9px 0; border-bottom:1px solid #f1f5f9; display:flex; flex-direction:column; gap:2px; }
     .marca-field:nth-child(odd)       { padding-right:22px; border-right:1px solid #f1f5f9; }
     .marca-field:nth-child(even)      { padding-left:22px; }
     .marca-field:nth-last-child(-n+2) { border-bottom:none; }
     .mf-label { font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.8px; }
     .mf-value { font-size:15px; font-weight:700; color:#1a202c; line-height:1.2; }
-    .mf-value.big  { font-size:22px; color:#0F6E56; }
-    .mf-value.mono { font-family:'Courier New',monospace; font-size:13px; }
+    .mf-value.big  { font-size:24px; color:#0F6E56; }
+    .mf-value.mono { font-family:'Courier New',monospace; font-size:14px; }
     .marca-footer { background:#f8fafc; border-top:1px solid #e2e8f0; padding:9px 30px; display:flex; align-items:center; justify-content:space-between; }
     .marca-footer-left  { font-size:10px; color:#94a3b8; font-weight:600; }
     .marca-footer-right { display:flex; gap:6px; align-items:center; }
