@@ -233,15 +233,15 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
 .marca-top-qr{background:#fff;border-radius:8px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:5px;}
 .marca-top-qr canvas{width:100px!important;height:100px!important;}
 .marca-top-qr span{font-size:10px;font-weight:700;color:var(--brand);letter-spacing:.5px;text-align:center;}
-.marca-body{padding:20px 32px 24px;display:grid;grid-template-columns:1fr 1fr;gap:0;}
-.marca-field{padding:14px 0;border-bottom:1px solid #f1f5f9;display:flex;flex-direction:column;gap:4px;}
+.marca-body{padding:20px 32px 24px;display:grid;grid-template-columns:1fr 1fr;gap:0;flex:1;}
+.marca-field{padding:18px 0;border-bottom:1px solid #f1f5f9;display:flex;flex-direction:column;gap:6px;}
 .marca-field:nth-child(odd){padding-right:24px;border-right:1px solid #f1f5f9;}
 .marca-field:nth-child(even){padding-left:24px;}
 .marca-field:nth-last-child(-n+2){border-bottom:none;}
-.mf-label{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px;}
-.mf-value{font-size:17px;font-weight:700;color:#1a202c;line-height:1.2;}
-.mf-value.big{font-size:26px;color:var(--brand);}
-.mf-value.mono{font-family:'Courier New',monospace;font-size:16px;}
+.mf-label{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px;}
+.mf-value{font-size:24px;font-weight:700;color:#1a202c;line-height:1.2;}
+.mf-value.big{font-size:36px;color:var(--brand);}
+.mf-value.mono{font-family:'Courier New',monospace;font-size:22px;}
 .mf-of-interna{font-size:13px;color:var(--text2);font-weight:500;margin-top:2px;}
 .marca-footer{background:#f8fafc;border-top:1px solid #e2e8f0;padding:10px 32px;display:flex;align-items:center;justify-content:space-between;}
 .marca-footer-left{font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:.5px;}
@@ -2074,7 +2074,9 @@ async function marcaRefreshPreview() {
   // Build card HTML first (without QR)
   wrap.innerHTML = `
   <div class="marca-card" id="marca-card-el">
+    <!-- HEADER VERDE -->
     <div class="marca-top">
+      <!-- Izquierda: logo + descripción principal -->
       <div class="marca-top-left">
         <div class="marca-logo-row">
           <div class="marca-logo-box">
@@ -2090,24 +2092,27 @@ async function marcaRefreshPreview() {
           </div>
         </div>
         <div class="marca-title">Identificación de Producto</div>
-        <!-- Descripción Principal en el header, grande y visible -->
-        <div style="margin-top:10px;">
-          <div style="color:rgba(255,255,255,.6);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;">Descripción Principal</div>
-          <div style="color:#fff;font-size:26px;font-weight:900;line-height:1.1;letter-spacing:.3px;text-shadow:0 1px 4px rgba(0,0,0,.18);">${esc(marcaSelected.descripcion1)}</div>
+        <div style="margin-top:12px;">
+          <div style="color:rgba(255,255,255,.6);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">Descripción Principal</div>
+          <div style="color:#fff;font-size:32px;font-weight:900;line-height:1.05;letter-spacing:.2px;text-shadow:0 2px 6px rgba(0,0,0,.2);">${esc(marcaSelected.descripcion1)}</div>
         </div>
-        <!-- Cantidad destacada bajo la descripción -->
-        <div style="margin-top:10px;display:flex;align-items:baseline;gap:8px;">
-          <div style="color:rgba(255,255,255,.6);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cantidad:</div>
-          <div style="color:#fff;font-size:36px;font-weight:900;line-height:1;text-shadow:0 2px 6px rgba(0,0,0,.2);">${qty}</div>
-          <div style="color:rgba(255,255,255,.7);font-size:14px;font-weight:600;">unidades</div>
-        </div>
-        ${marcaSelected._src==='log'?'<div style="color:rgba(255,255,255,.6);font-size:10px;font-weight:700;margin-top:6px;letter-spacing:.5px;">· OF Logística</div>':''}
       </div>
+
+      <!-- Centro: CANTIDAD grande -->
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px;border-left:1px solid rgba(255,255,255,.2);border-right:1px solid rgba(255,255,255,.2);min-width:160px;">
+        <div style="color:rgba(255,255,255,.6);font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;">Cantidad</div>
+        <div style="color:#fff;font-size:72px;font-weight:900;line-height:1;text-shadow:0 3px 12px rgba(0,0,0,.25);">${qty}</div>
+        <div style="color:rgba(255,255,255,.75);font-size:16px;font-weight:600;margin-top:4px;">unidades</div>
+      </div>
+
+      <!-- Derecha: QR -->
       <div class="marca-top-qr">
-        <div id="qr-container" style="width:90px;height:90px;border-radius:4px;overflow:hidden;background:#fff;"></div>
+        <div id="qr-container" style="width:110px;height:110px;border-radius:6px;overflow:hidden;background:#fff;"></div>
         <span>ESCANEAR SKU</span>
       </div>
     </div>
+
+    <!-- CUERPO: grid más grande, ocupa todo el espacio restante -->
     <div class="marca-body">
       <div class="marca-field">
         <span class="mf-label">SKU / Código</span>
@@ -2115,31 +2120,33 @@ async function marcaRefreshPreview() {
       </div>
       <div class="marca-field">
         <span class="mf-label">Descripción Secundaria</span>
-        <span class="mf-value" style="font-size:15px;">${esc(marcaSelected.descripcion2)}</span>
+        <span class="mf-value">${esc(marcaSelected.descripcion2)}</span>
       </div>
       <div class="marca-field">
         <span class="mf-label">OC Cliente</span>
-        <span class="mf-value mono" style="font-size:16px;">${esc(marcaSelected.oc_cliente)}</span>
+        <span class="mf-value mono">${esc(marcaSelected.oc_cliente)}</span>
       </div>
       <div class="marca-field">
         <span class="mf-label">OF MCH</span>
-        <span class="mf-value mono" style="font-size:16px;">${esc(marcaSelected.of_mch)}</span>
+        <span class="mf-value mono">${esc(marcaSelected.of_mch)}</span>
       </div>
       <div class="marca-field">
         <span class="mf-label">OF Interna</span>
-        <span class="mf-value mono" style="font-size:19px;font-weight:800;">${esc(marcaSelected.of_interna)}</span>
+        <span class="mf-value mono" style="font-weight:900;">${esc(marcaSelected.of_interna)}</span>
       </div>
       <div class="marca-field">
         <span class="mf-label">Cliente</span>
         <span class="mf-value">${esc(marcaSelected.cliente)}</span>
       </div>
-      <div class="marca-field">
+      <div class="marca-field" style="border-bottom:none;">
         <span class="mf-label">Área de Fabricación</span>
         <span class="mf-value">
-          <span style="background:#e0e7ff;color:#3730a3;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">${esc(marcaSelected.area)}</span>
+          <span style="background:#e0e7ff;color:#3730a3;font-size:14px;font-weight:700;padding:5px 14px;border-radius:20px;">${esc(marcaSelected.area)}</span>
         </span>
       </div>
+      <div class="marca-field" style="border-bottom:none;"></div>
     </div>
+
     <div class="marca-footer">
       <span class="marca-footer-left">Fecha de emisión: ${fecha}</span>
       <div class="marca-footer-right">
@@ -2806,33 +2813,33 @@ async function printMarca() {
 
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
   <style>
-    @page { size: A4 landscape; margin: 10mm; }
+    @page { size: A4 landscape; margin: 6mm; }
     *  { box-sizing:border-box; margin:0; padding:0; }
-    body { font-family:Arial,sans-serif; background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    .marca-card  { width:100%; border-radius:10px; overflow:hidden; border:1px solid #e2e8f0; }
-    .marca-top   { background:linear-gradient(135deg,#0F6E56 0%,#1D9E75 60%,#5DCAA5 100%); padding:22px 30px 18px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
-    .marca-top-left { display:flex; flex-direction:column; gap:4px; }
+    body { font-family:Arial,sans-serif; background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; height:100vh; display:flex; flex-direction:column; }
+    .marca-card  { width:100%; height:100vh; border-radius:10px; overflow:hidden; border:1px solid #e2e8f0; display:flex; flex-direction:column; }
+    .marca-top   { background:linear-gradient(135deg,#0F6E56 0%,#1D9E75 60%,#5DCAA5 100%); padding:28px 36px 24px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-shrink:0; }
+    .marca-top-left { display:flex; flex-direction:column; gap:5px; flex:1; }
     .marca-logo-row { display:flex; align-items:center; gap:10px; }
-    .marca-logo-box { width:34px; height:34px; background:#fff; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .marca-brand    { color:#fff; font-size:20px; font-weight:800; letter-spacing:.5px; }
+    .marca-logo-box { width:36px; height:36px; background:#fff; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .marca-brand    { color:#fff; font-size:22px; font-weight:800; letter-spacing:.5px; }
     .marca-subbrand { color:rgba(255,255,255,.75); font-size:11px; font-weight:500; letter-spacing:1px; text-transform:uppercase; }
     .marca-title    { color:#fff; font-size:11px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; opacity:.85; margin-top:6px; }
-    .marca-top-qr   { background:#fff; border-radius:8px; padding:6px; display:flex; flex-direction:column; align-items:center; gap:3px; flex-shrink:0; }
+    .marca-top-qr   { background:#fff; border-radius:8px; padding:7px; display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; }
     .marca-top-qr span { font-size:9px; font-weight:700; color:#0F6E56; letter-spacing:.5px; }
-    #qr-container img { width:90px; height:90px; display:block; border-radius:4px; }
-    .marca-body  { padding:16px 30px 20px; display:grid; grid-template-columns:1fr 1fr; }
-    .marca-field { padding:9px 0; border-bottom:1px solid #f1f5f9; display:flex; flex-direction:column; gap:2px; }
-    .marca-field:nth-child(odd)       { padding-right:22px; border-right:1px solid #f1f5f9; }
-    .marca-field:nth-child(even)      { padding-left:22px; }
+    #qr-container img { width:110px; height:110px; display:block; border-radius:4px; }
+    .marca-body  { padding:22px 36px 22px; display:grid; grid-template-columns:1fr 1fr; flex:1; }
+    .marca-field { padding:20px 0; border-bottom:1px solid #f1f5f9; display:flex; flex-direction:column; gap:5px; }
+    .marca-field:nth-child(odd)       { padding-right:28px; border-right:1px solid #f1f5f9; }
+    .marca-field:nth-child(even)      { padding-left:28px; }
     .marca-field:nth-last-child(-n+2) { border-bottom:none; }
-    .mf-label { font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.8px; }
-    .mf-value { font-size:15px; font-weight:700; color:#1a202c; line-height:1.2; }
-    .mf-value.big  { font-size:24px; color:#0F6E56; }
-    .mf-value.mono { font-family:'Courier New',monospace; font-size:14px; }
-    .marca-footer { background:#f8fafc; border-top:1px solid #e2e8f0; padding:9px 30px; display:flex; align-items:center; justify-content:space-between; }
-    .marca-footer-left  { font-size:10px; color:#94a3b8; font-weight:600; }
+    .mf-label { font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.8px; }
+    .mf-value { font-size:26px; font-weight:700; color:#1a202c; line-height:1.2; }
+    .mf-value.big  { font-size:38px; color:#0F6E56; }
+    .mf-value.mono { font-family:'Courier New',monospace; font-size:24px; }
+    .marca-footer { background:#f8fafc; border-top:1px solid #e2e8f0; padding:10px 36px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+    .marca-footer-left  { font-size:11px; color:#94a3b8; font-weight:600; }
     .marca-footer-right { display:flex; gap:6px; align-items:center; }
-    .dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+    .dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
   </style></head><body>${clone.outerHTML}</body></html>`;
 
   const w = window.open('', '_blank', 'width=960,height=640');
