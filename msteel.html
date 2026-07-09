@@ -298,6 +298,7 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
     <button class="nav-tab active" onclick="showPage('ordenes',this)">📋 Órdenes <span id="alert-badge" style="display:none;background:#dc3545;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:3px;"></span></button>
     <button class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</button>
     <button class="nav-tab" onclick="showPage('data',this)">🗄 Data</button>
+    <button class="nav-tab" onclick="showPage('pletinas',this)">🔩 Pletinas</button>
     <button class="nav-tab" onclick="showPage('logistica',this)">🚚 OF Logística</button>
     <button class="nav-tab" onclick="showPage('marca',this)">🏷 Marca</button>
     <button class="nav-tab" id="nav-movimientos" style="display:none;" onclick="showPage('movimientos',this)">🛡 Movimientos</button>
@@ -470,6 +471,95 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
         </div></td></tr>
       </tbody>
     </table>
+  </div>
+</div>
+
+<!-- ══════════ PLETINAS PAGE ══════════ -->
+<div id="page-pletinas" class="page">
+
+  <!-- TOOLBAR -->
+  <div class="ord-toolbar" style="flex-wrap:wrap;gap:8px;">
+    <h2>🔩 Pletinas <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label-plet"></span></h2>
+    <input id="plet-search" type="text" placeholder="🔍 Buscar SKU, nombre, descripción…" oninput="renderPletinasTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:220px;outline:none;"/>
+    <select id="plet-filter-tipo" onchange="renderPletinasTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los tipos</option>
+    </select>
+    <button class="btn-primary" onclick="abrirModalPletina()" style="background:#0F6E56;">
+      ＋ Nueva Pletina
+    </button>
+    <button class="btn-primary" onclick="mostrarNecesidades()" style="background:#7c3aed;">
+      📊 Pletinas necesarias
+    </button>
+    <button class="btn-primary" onclick="exportCSVPletinas()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar CSV
+    </button>
+  </div>
+
+  <!-- Panel necesidades de pletinas (se muestra al pulsar el botón) -->
+  <div id="plet-necesidades" style="display:none;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:1rem 1.2rem;margin-bottom:1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <strong style="font-size:13px;">📊 Pletinas requeridas por órdenes Pendientes/Parciales</strong>
+      <button onclick="document.getElementById('plet-necesidades').style.display='none'" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:16px;">✕</button>
+    </div>
+    <div id="plet-nec-body"></div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="ord-tbl">
+      <thead><tr>
+        <th>SKU</th><th>Tipo (Área)</th><th>Nombre</th>
+        <th onclick="sortPlet('descripcion1')" style="cursor:pointer;">Descripción 1 ↕</th>
+        <th>Descripción 2</th>
+        <th onclick="sortPlet('stock')" style="cursor:pointer;">Stock ↕</th>
+        <th>Pletinas en OF pendientes</th>
+        <th>Acciones</th>
+      </tr></thead>
+      <tbody id="plet-body">
+        <tr><td colspan="8"><div class="empty-state">
+          <p>No hay pletinas registradas</p><small>Haz clic en "Nueva Pletina" para agregar</small>
+        </div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal Pletina -->
+<div id="modal-pletina" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:1.8rem;width:420px;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.25);">
+    <h3 style="margin:0 0 1rem;font-size:16px;color:#1a202c;" id="modal-plet-title">Nueva Pletina</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">SKU</label>
+        <input id="plet-sku" type="text" placeholder="80001"
+          style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;box-sizing:border-box;"/>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Tipo (Área)</label>
+        <input id="plet-tipo" type="text" placeholder="RM"
+          style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;box-sizing:border-box;"/>
+      </div>
+    </div>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Nombre</label>
+    <input id="plet-nombre" type="text" placeholder="Pletina"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px;outline:none;box-sizing:border-box;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Descripción 1</label>
+    <input id="plet-desc1" type="text" placeholder="PLETINA-ACERO-20x3/6mt/"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px;outline:none;box-sizing:border-box;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Descripción 2</label>
+    <input id="plet-desc2" type="text" placeholder="ACERO-CARBONO-//Unidad"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px;outline:none;box-sizing:border-box;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Stock (unidades)</label>
+    <input id="plet-stock" type="number" min="0" value="0"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:6px;outline:none;box-sizing:border-box;"/>
+    <div id="modal-plet-error" style="color:#dc3545;font-size:12px;font-weight:600;min-height:16px;margin-bottom:10px;"></div>
+    <input type="hidden" id="plet-edit-id"/>
+    <div style="display:flex;gap:8px;">
+      <button onclick="cerrarModalPletina()" style="flex:1;background:none;border:1px solid #e2e8f0;border-radius:8px;padding:9px;font-size:13px;cursor:pointer;color:#64748b;">Cancelar</button>
+      <button onclick="guardarPletina()" style="flex:1;background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;">Guardar</button>
+    </div>
   </div>
 </div>
 
@@ -805,6 +895,7 @@ function showPage(id, el) {
   el.classList.add('active');
   if (id === 'dashboard') { populateFilterOptions(); applyFilters(); }
   if (id === 'data') renderDataTable();
+  if (id === 'pletinas') renderPletinasTable();
   if (id === 'logistica') renderLogTable();
   if (id === 'marca') marcaInit();
   if (id === 'movimientos') loadMovimientos();
@@ -828,6 +919,7 @@ async function initSupabase() {
     toast('Supabase conectado', 'success');
     loadOrders();
     loadLogOrders();
+    loadPletinas();
     startAutoRefresh();
   } catch(e) {
     st.textContent = '✗ Error'; st.className = 'err';
@@ -1795,11 +1887,60 @@ function baseOpts(horiz) {
   };
 }
 
-function upsertChart(id, type, data, options) {
-  if (charts[id]) { charts[id].data=data; if(options) charts[id].options=options; charts[id].update('active'); return; }
+function labelPlugin(horiz=false, suffix='') {
+  return {
+    id:'dataLabels_'+Math.random(),
+    afterDatasetsDraw(chart) {
+      const {ctx,scales:{x,y}} = chart;
+      chart.data.datasets.forEach((ds,di)=>{
+        const meta = chart.getDatasetMeta(di);
+        meta.data.forEach((bar,i)=>{
+          const val = ds.data[i];
+          if (!val && val!==0) return;
+          const txt = Number.isInteger(val) ? val.toLocaleString('es-CL') : Math.round(val).toLocaleString('es-CL');
+          ctx.save();
+          ctx.fillStyle = '#1a202c';
+          ctx.font = 'bold 11px Arial';
+          ctx.textAlign = horiz ? 'left' : 'center';
+          ctx.textBaseline = horiz ? 'middle' : 'bottom';
+          const px = bar.x + (horiz ? 6 : 0);
+          const py = horiz ? bar.y : bar.y - 3;
+          ctx.fillText(txt + suffix, px, py);
+          ctx.restore();
+        });
+      });
+    }
+  };
+}
+function labelPluginLine() {
+  return {
+    id:'lineLabels_'+Math.random(),
+    afterDatasetsDraw(chart) {
+      const {ctx} = chart;
+      chart.data.datasets.forEach((ds,di)=>{
+        const meta = chart.getDatasetMeta(di);
+        meta.data.forEach((pt,i)=>{
+          const val = ds.data[i];
+          if (!val && val!==0) return;
+          const txt = Number.isInteger(val) ? val.toLocaleString('es-CL') : Math.round(val).toLocaleString('es-CL');
+          ctx.save();
+          ctx.fillStyle = ds.borderColor || '#1a202c';
+          ctx.font = 'bold 11px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(txt, pt.x, pt.y - 6);
+          ctx.restore();
+        });
+      });
+    }
+  };
+}
+
+function upsertChart(id, type, data, options, pluginsList) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
   const ctx = document.getElementById(id);
   if (!ctx) return;
-  charts[id] = new Chart(ctx, { type, data, options });
+  charts[id] = new Chart(ctx, { type, data, options, plugins: pluginsList||[] });
 }
 
 function updateAllCharts() {
@@ -1808,14 +1949,14 @@ function updateAllCharts() {
   upsertChart('ch-desc2','bar',{
     labels:d2.map(e=>e[0]),
     datasets:[{data:d2.map(e=>e[1]),backgroundColor:PAL[0]+'bb',borderRadius:5}]
-  }, baseOpts(true));
+  }, baseOpts(true), [labelPlugin(true)]);
 
   // Desc1 × qty
   const d1 = topN(groupSum(dashFiltered, d=>d.descripcion1, d=>parseInt(d.cantidad)||0), 10);
   upsertChart('ch-desc1','bar',{
     labels:d1.map(e=>e[0]),
     datasets:[{data:d1.map(e=>e[1]),backgroundColor:PAL[1]+'bb',borderRadius:5}]
-  }, baseOpts(true));
+  }, baseOpts(true), [labelPlugin(true)]);
 
   // Mes × qty (line)
   const mesQty={};
@@ -1823,8 +1964,8 @@ function updateAllCharts() {
   const mesE=Object.entries(mesQty).sort((a,b)=>a[0].localeCompare(b[0]));
   upsertChart('ch-mes','line',{
     labels:mesE.map(([k])=>{ const[y,m]=k.split('-'); return MESES[parseInt(m)-1]+' '+y; }),
-    datasets:[{data:mesE.map(e=>e[1]),borderColor:PAL[2],backgroundColor:PAL[2]+'22',fill:true,tension:.35,pointRadius:4,pointBackgroundColor:PAL[2]}]
-  },{ ...baseOpts(), plugins:{legend:{display:false}} });
+    datasets:[{data:mesE.map(e=>e[1]),borderColor:PAL[2],backgroundColor:PAL[2]+'22',fill:true,tension:.35,pointRadius:5,pointBackgroundColor:PAL[2]}]
+  },{ ...baseOpts(), plugins:{legend:{display:false}} }, [labelPluginLine()]);
 
   // OF por mes
   const mesOF={};
@@ -1833,7 +1974,7 @@ function updateAllCharts() {
   upsertChart('ch-of-mes','bar',{
     labels:mesOFE.map(([k])=>{ const[y,m]=k.split('-'); return MESES[parseInt(m)-1]+' '+y; }),
     datasets:[{data:mesOFE.map(e=>e[1]),backgroundColor:PAL[4]+'bb',borderRadius:5}]
-  },{ ...baseOpts(), plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.parsed.y+' OFs'}}} });
+  },{ ...baseOpts(), plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.parsed.y+' OFs'}}} }, [labelPlugin(false,' OFs')]);
 
   // Cumplimiento donut
   const conF=dashFiltered.filter(d=>d.estado==='Entregado'&&d.fecha_entrega&&d.fecha_termino);
@@ -1843,7 +1984,7 @@ function updateAllCharts() {
   upsertChart('ch-cum','doughnut',{
     labels:['A tiempo','Con retraso','Sin datos'],
     datasets:[{data:[atiem,tarde,sinD],backgroundColor:[PAL[0],PAL[3],'#e2e8f0'],borderWidth:2,borderColor:'#fff'}]
-  },{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},color:'#64748b',boxWidth:11}}},cutout:'60%'});
+  },{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},color:'#64748b',boxWidth:11}}}});
 
   // Estado donut
   const estM=groupSum(dashFiltered,d=>d.estado);
@@ -1852,14 +1993,14 @@ function updateAllCharts() {
   upsertChart('ch-estado','doughnut',{
     labels:estL,
     datasets:[{data:estL.map(l=>estM[l]),backgroundColor:estL.map(l=>estC[l]||PAL[3]),borderWidth:2,borderColor:'#fff'}]
-  },{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},color:'#64748b',boxWidth:11}}},cutout:'60%'});
+  },{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},color:'#64748b',boxWidth:11}}}});
 
   // Top clientes
   const cli=topN(groupSum(dashFiltered,d=>d.cliente,d=>parseInt(d.cantidad)||0),8);
   upsertChart('ch-cliente','bar',{
     labels:cli.map(e=>e[0]),
     datasets:[{data:cli.map(e=>e[1]),backgroundColor:PAL.map(c=>c+'bb'),borderRadius:5}]
-  }, baseOpts(true));
+  }, baseOpts(true), [labelPlugin(true)]);
 
   // Pareto table — descripcion1 × cantidad
   updateParetoTable();
@@ -2488,6 +2629,378 @@ function renderMovimientosTable() {
     <td>${esc(m.accion)}</td>
     <td style="color:var(--text2);font-size:12px;">${esc(m.detalle)}</td>
   </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════════
+//  PLETINAS — BOM (de hoja Frames del Excel BOM-2026)
+//  Clave: Descripción 1 del Frame (ej. "MSF-MC-004-001")
+//  Valor: array de {p:"20x3", lt:596} (tipo pletina x longitud total mm por unidad)
+// ══════════════════════════════════════════════════════
+const BOM_FRAMES = {
+'MSF-MC-001-001':[{p:'20x3',lt:1207},{p:'20x6',lt:580},{p:'20x8',lt:580}],
+'MSF-MC-002-001':[{p:'20x3',lt:986},{p:'20x6',lt:783}],
+'MSF-MC-003-001':[{p:'20x3',lt:1208},{p:'20x6',lt:1044}],
+'MSF-MC-004-001':[{p:'20x3',lt:596},{p:'20x5',lt:876}],
+'MSF-MC-005-001':[{p:'16x3',lt:642},{p:'16x5',lt:870}],
+'MSF-MC-006-001':[{p:'20x3',lt:642},{p:'20x5',lt:1160}],
+'MSF-MC-007-001':[{p:'20x3',lt:642},{p:'20x5',lt:1160}],
+'MSF-MC-008-001':[{p:'20x3',lt:642},{p:'20x5',lt:1160}],
+'MSF-MC-009-001':[{p:'16x5',lt:1180},{p:'20x5',lt:795},{p:'20x10',lt:1893}],
+'MSF-MC-010-001':[{p:'10x10',lt:580},{p:'20x3',lt:1207},{p:'20x5',lt:580},{p:'20x8',lt:870}],
+'MSF-MC-011-001':[{p:'20x3',lt:596},{p:'20x6',lt:1436}],
+'MSF-MC-012-001':[{p:'20x10',lt:1200},{p:'38x8',lt:1865}],
+'MSF-MC-013-001':[{p:'20x3',lt:598},{p:'20x6',lt:1440}],
+'MSF-MC-014-001':[{p:'20x6',lt:1690}],
+'MSF-MC-015-001':[{p:'20x6',lt:1418}],
+'MSF-MC-016-001':[{p:'20x3',lt:596},{p:'20x5',lt:584}],
+'MSF-MC-017-001-REV-1':[{p:'10x10',lt:281},{p:'20x3',lt:592},{p:'50x5',lt:870}],
+'MSF-MC-018-001':[{p:'10x10',lt:540},{p:'20x8',lt:570},{p:'50x5',lt:750}],
+'MSF-MC-019-001-REV-1':[{p:'10x10',lt:281},{p:'20x3',lt:638},{p:'50x5',lt:870}],
+'MSF-MC-020-001':[{p:'16x3',lt:600},{p:'16x5',lt:255},{p:'25x5',lt:510}],
+'MSF-MC-021-001':[{p:'20x8',lt:548},{p:'32x5',lt:1196},{p:'32x10',lt:1480}],
+'MSF-MC-022-001':[{p:'16x3',lt:596},{p:'16x5',lt:873}],
+'MSF-MC-023-001':[{p:'20x3',lt:596},{p:'20x5',lt:873}],
+'MSF-MC-024-001':[{p:'12x5',lt:562},{p:'20x3',lt:598},{p:'20x6',lt:878}],
+'MSF-MC-025-001':[{p:'10x10',lt:1162},{p:'25x8',lt:515},{p:'38x5',lt:1162},{p:'38x10',lt:572}],
+'MSF-MC-026-001':[{p:'20x5',lt:2343},{p:'20x8',lt:506},{p:'50x5',lt:1012}],
+'MSF-MC-027-001':[{p:'20x8',lt:1140}],
+'MSF-MC-028-001':[{p:'16x5',lt:2778}],
+'MSF-MC-029-001':[{p:'10x10',lt:1656},{p:'16x5',lt:496},{p:'25x8',lt:248},{p:'32x10',lt:1160},{p:'38x10',lt:586}],
+'MSF-MC-030-001':[{p:'10x10',lt:278},{p:'20x8',lt:1140}],
+'MSF-MC-031-001':[{p:'10x10',lt:556},{p:'20x8',lt:1140}],
+'MSF-MC-032-001':[{p:'20x5',lt:1207},{p:'20x8',lt:506},{p:'50x5',lt:506}],
+'MSF-MC-033-001':[{p:'20x3',lt:1207},{p:'20x6',lt:2030}],
+'MSF-MC-034-001':[{p:'10x10',lt:546},{p:'20x8',lt:1140}],
+'MSF-MC-035-001':[{p:'20x3',lt:1207},{p:'20x8',lt:1450}],
+'MSF-MC-036-001':[{p:'12x5',lt:562},{p:'20x6',lt:878},{p:'25x3',lt:598}],
+'MSF-MC-037-001':[{p:'12x5',lt:580},{p:'20x8',lt:870},{p:'25x3',lt:1207}],
+'MSF-MC-038-001':[{p:'20x3',lt:1207},{p:'20x8',lt:2577}],
+'MSF-MC-039-001':[{p:'12x12',lt:1078},{p:'20x8',lt:980},{p:'20x12',lt:1180},{p:'50x12',lt:1110}],
+'MSF-MC-040-001':[{p:'10x10',lt:2119},{p:'32x3',lt:1207},{p:'32x5',lt:506}],
+'MSF-MC-041-001':[{p:'12x5',lt:1207},{p:'20x3',lt:1207},{p:'20x5',lt:580},{p:'20x8',lt:870}],
+'MSF-MC-042-001':[{p:'12x3',lt:600},{p:'38x6',lt:2524}],
+'MSF-MC-043-001':[{p:'10x10',lt:738},{p:'20x8',lt:1644}],
+'MSF-MC-044-001':[{p:'20x3',lt:1260},{p:'20x6',lt:2385}],
+'MSF-MC-045-001':[{p:'20x3',lt:1207},{p:'20x8',lt:870}],
+'MSF-MC-046-001':[{p:'10x10',lt:556},{p:'20x8',lt:1140}],
+'MSF-MC-047-001':[{p:'20x5',lt:1190},{p:'20x8',lt:888}],
+'MSF-MC-048-001':[{p:'12x3',lt:480},{p:'25x5',lt:858},{p:'25x10',lt:858}],
+'MSF-MC-049-001':[{p:'16x3',lt:146},{p:'20x3',lt:586},{p:'20x5',lt:574}],
+'MSF-MC-050-001':[{p:'16x3',lt:150},{p:'20x3',lt:578},{p:'20x5',lt:879}],
+'MSF-MC-051-001':[{p:'16x3',lt:293},{p:'20x3',lt:1206},{p:'20x8',lt:870}],
+'MSF-MC-052-001':[{p:'12x5',lt:270},{p:'20x3',lt:597},{p:'20x5',lt:597},{p:'20x8',lt:405}],
+'MSF-MC-055-001':[{p:'20x3',lt:596},{p:'20x5',lt:1160}],
+'MSF-MC-056-001':[{p:'20x8',lt:774}],
+'MSF-MC-057-001':[{p:'20x5',lt:2687}],
+'MSF-MC-058-001':[{p:'12x5',lt:540},{p:'20x3',lt:597},{p:'20x5',lt:597},{p:'20x8',lt:405}],
+'MSF-MC-059-001':[{p:'20x3',lt:258},{p:'20x5',lt:516}],
+'MSF-MC-061-001':[{p:'12x5',lt:604},{p:'20x5',lt:1687},{p:'20x8',lt:836}],
+'MSF-MC-062-001':[{p:'25x8',lt:2623}],
+'MSF-MC-063-001':[{p:'25x10',lt:2080},{p:'50x8',lt:2700}],
+'MSF-MC-064-001':[{p:'20x6',lt:1208},{p:'20x8',lt:753}],
+'MSF-MC-065-001':[{p:'20x6',lt:600},{p:'20x8',lt:502}],
+'MSF-MC-066-001':[{p:'10x10',lt:278},{p:'20x8',lt:1140}],
+'MSF-MC-067-001':[{p:'25x6',lt:1208},{p:'25x8',lt:753}],
+'MSF-MC-068-001':[{p:'20x3',lt:568},{p:'20x8',lt:1152}],
+'MSF-MC-069-001':[{p:'25x6',lt:600},{p:'25x8',lt:502}],
+'MSF-MC-070-001':[{p:'20x8',lt:516}],
+'MSF-MC-071-001':[{p:'16x5',lt:974}],
+'MSF-MC-072-001':[{p:'20x5',lt:516}],
+'MSF-MC-073-001':[{p:'10x10',lt:864},{p:'20x3',lt:1188},{p:'20x8',lt:576}],
+'MSF-MC-074-001':[{p:'12x5',lt:604},{p:'20x3',lt:1299},{p:'20x8',lt:580},{p:'38x5',lt:580}],
+'MSF-MC-075-001':[{p:'20x3',lt:300},{p:'20x5',lt:1170}],
+'MSF-MC-077-001':[{p:'12x5',lt:572},{p:'20x5',lt:1702},{p:'20x8',lt:506}],
+'MSF-MC-078-001':[{p:'16x3',lt:596},{p:'16x5',lt:1460}],
+'MSF-MC-079-001':[{p:'12x5',lt:602},{p:'20x5',lt:516},{p:'20x8',lt:774}],
+'MSF-MC-080-001':[{p:'20x3',lt:600},{p:'20x5',lt:1155}],
+'MSF-MC-081-001':[{p:'12x5',lt:558},{p:'16x5',lt:279},{p:'20x3',lt:558},{p:'25x10',lt:988}],
+'MSF-MC-082-001':[{p:'20x3',lt:1207},{p:'20x5',lt:584},{p:'20x8',lt:876}],
+'MSF-MC-083-001':[{p:'20x3',lt:1207},{p:'20x5',lt:1168},{p:'20x8',lt:292}],
+'MSF-MC-084-001':[{p:'20x3',lt:1207},{p:'20x5',lt:584},{p:'20x8',lt:876}],
+'MSF-MC-086-001':[{p:'12x5',lt:568},{p:'20x10',lt:1190},{p:'32x8',lt:1128}],
+'MSF-MC-087-001':[{p:'12x5',lt:568},{p:'20x10',lt:1190},{p:'38x8',lt:1048}],
+'MSF-MC-088-001':[{p:'12x12',lt:580},{p:'20x10',lt:558},{p:'32x8',lt:556}],
+'MSF-MC-089-001':[{p:'20x10',lt:580},{p:'38x8',lt:803}],
+'MSF-MC-090-001':[{p:'12x5',lt:524},{p:'20x10',lt:580},{p:'32x8',lt:524}],
+'MSF-MC-091-001':[{p:'12x5',lt:524},{p:'20x10',lt:524},{p:'32x8',lt:580}],
+'MSF-MC-092-001':[{p:'12x5',lt:1136},{p:'20x10',lt:1190},{p:'32x8',lt:1048}],
+'MSF-MC-093-001':[{p:'20x10',lt:580},{p:'32x8',lt:272},{p:'38x8',lt:786}],
+'MSF-MC-094-001':[{p:'20x10',lt:1182},{p:'32x8',lt:1086},{p:'38x6',lt:262}],
+'MSF-MC-095-001':[{p:'12x5',lt:604},{p:'38x5',lt:1687},{p:'38x8',lt:836}],
+'MSF-MC-096-001':[{p:'12x5',lt:604},{p:'25x5',lt:588},{p:'38x5',lt:1687},{p:'38x8',lt:836}],
+'MSF-MC-097-001':[{p:'20x10',lt:580},{p:'32x8',lt:524}],
+'MSF-MC-098-001':[{p:'20x3',lt:604},{p:'20x5',lt:587},{p:'20x8',lt:405}],
+'MSF-MC-099-001':[{p:'20x8',lt:548},{p:'32x5',lt:1196},{p:'32x10',lt:1480}],
+'MSF-MC-100-001':[{p:'20x3',lt:1207},{p:'20x8',lt:876}],
+'MSF-MC-102-001':[{p:'10x10',lt:562},{p:'20x8',lt:596}],
+'MSF-MC-103-001':[{p:'10x10',lt:551},{p:'20x5',lt:596}],
+'MSF-MC-104-001':[{p:'16x5',lt:844}],
+'MSF-MC-105-001':[{p:'38x6',lt:11716}],
+'MSF-MC-106-001':[{p:'38x6',lt:4314}],
+'MSF-MC-107-001':[{p:'38x6',lt:5985}],
+'MSF-MC-108-001':[{p:'38x6',lt:13048}],
+'MSF-MC-109-001':[{p:'20x10',lt:1190},{p:'32x8',lt:524},{p:'32x10',lt:262}],
+'MSF-MC-110-001':[{p:'20x10',lt:588},{p:'32x8',lt:524}],
+'MSF-MC-111-001':[{p:'38x8',lt:1196},{p:'50x10',lt:2766}],
+'MSF-MC-112-001':[{p:'10x10',lt:590},{p:'25x8',lt:811}],
+'MSF-MC-113-001':[{p:'20x3',lt:596},{p:'20x5',lt:801}],
+'MSF-MC-114-001':[{p:'20x5',lt:3132}],
+'MSF-MC-115-001':[{p:'12x12',lt:578},{p:'16x5',lt:797},{p:'25x10',lt:528}],
+'MSF-MC-116-001':[{p:'12x12',lt:1200},{p:'16x5',lt:560},{p:'28x10',lt:1056}],
+'MSF-MC-117-001':[{p:'10x10',lt:1140},{p:'20x5',lt:516},{p:'20x8',lt:516}],
+'MSF-MC-119-001':[{p:'20x5',lt:9435}],
+'MSF-MC-120-001':[{p:'20x3',lt:2599},{p:'20x5',lt:9546}],
+'MSF-MC-121-001':[{p:'20x3',lt:1300},{p:'20x5',lt:1460}],
+'MSF-MC-123-001':[{p:'20x3',lt:1300},{p:'20x5',lt:876},{p:'20x8',lt:584}],
+'MSF-MC-125-001':[{p:'32x3',lt:2455},{p:'32x5',lt:620},{p:'32x8',lt:620}],
+'MSF-MC-126-001':[{p:'10x10',lt:620},{p:'20x3',lt:1300},{p:'20x5',lt:310},{p:'20x8',lt:620}],
+'MSF-MC-127-001':[{p:'20x5',lt:516},{p:'20x8',lt:516}],
+'MSF-MC-128-001-REV-3':[{p:'12x5',lt:292},{p:'20x5',lt:1410},{p:'20x8',lt:846},{p:'32x5',lt:292}],
+'MSF-MC-129-001':[{p:'38x5',lt:3600}],
+'MSF-MC-130-001':[{p:'20x5',lt:2780}],
+'MSF-MC-131-001':[{p:'20x3',lt:1299},{p:'20x5',lt:1168}],
+'MSF-MC-132-001':[{p:'20x5',lt:1742},{p:'20x10',lt:552}],
+'MSF-MC-133-001':[{p:'20x5',lt:1466},{p:'20x10',lt:552}],
+'MSF-MC-134-001':[{p:'20x8',lt:1387}],
+'MSF-MC-135-001':[{p:'16x5',lt:4507}],
+'MSF-MC-136-001':[{p:'10x10',lt:590},{p:'20x3',lt:1104},{p:'20x5',lt:1104}],
+'MSF-MC-137-001':[{p:'10x10',lt:580},{p:'20x3',lt:552},{p:'20x5',lt:1243}],
+'MSF-MC-138-001':[{p:'32x10',lt:1846},{p:'38x10',lt:1758}],
+'MSF-MC-139-001':[{p:'32x10',lt:1617},{p:'38x10',lt:1734}],
+'MSF-MC-140-001':[{p:'20x8',lt:1290}],
+'MSF-MC-141-001':[{p:'20x3',lt:642},{p:'20x6',lt:1156}],
+'MSF-MC-142-001':[{p:'20x3',lt:642},{p:'20x5',lt:804}],
+'MSF-MC-143-001':[{p:'16x3',lt:642},{p:'16x5',lt:876}],
+'MSF-MC-144-001':[{p:'16x3',lt:642},{p:'16x5',lt:876}],
+'MSF-MC-145-001':[{p:'20x3',lt:642},{p:'20x5',lt:939}],
+'MSF-MC-146-001':[{p:'12x5',lt:604},{p:'32x3',lt:1299},{p:'32x8',lt:580},{p:'50x5',lt:870}],
+'MSF-MC-147-001':[{p:'16x3',lt:280},{p:'16x5',lt:584}],
+'MSF-MC-148-001':[{p:'16x3',lt:642},{p:'16x5',lt:975}],
+'MSF-MC-149-001':[{p:'10x10',lt:556},{p:'38x8',lt:1140}],
+'MSF-MC-150-001':[{p:'20x3',lt:642},{p:'20x6',lt:1156}],
+'MSF-MC-151-001':[{p:'32x10',lt:1307},{p:'38x10',lt:1734}],
+'MSF-MC-152-001':[{p:'20x3',lt:1300},{p:'20x5',lt:876},{p:'20x8',lt:584}],
+'MSF-MC-155-001-REV-0':[{p:'10x10',lt:1204},{p:'32x5',lt:520},{p:'32x8',lt:520}],
+'MSF-MC-156-001':[{p:'10x10',lt:592},{p:'20x3',lt:858},{p:'20x5',lt:1106}],
+'MSF-MC-157-001':[{p:'32x3',lt:642},{p:'32x6',lt:1296}],
+'MSF-MC-161-001':[{p:'16x3',lt:642},{p:'16x5',lt:892}],
+'MSF-MC-162-001':[{p:'16x3',lt:315},{p:'16x5',lt:592}],
+'MSF-MC-163-001':[{p:'25x6',lt:13044}],
+'MSF-MC-164-001':[{p:'32x3',lt:642},{p:'32x6',lt:1156}],
+'MSF-MC-165-001-Rev-0':[{p:'20x3',lt:642},{p:'20x5',lt:1159}],
+};
+
+// ══════════════════════════════════════════════════════
+//  PLETINAS — CRUD
+// ══════════════════════════════════════════════════════
+let pletinas = [];
+let pletSort = { col:'sku', dir:1 };
+const TABLE_PLET = 'pletinas';
+
+async function loadPletinas() {
+  if (!sbClient) return;
+  const { data, error } = await sbClient.from(TABLE_PLET).select('*').order('sku');
+  if (error) { toast('Error cargando pletinas: '+error.message,'error'); return; }
+  pletinas = data || [];
+  renderPletinasTable();
+}
+
+function sortPlet(col) {
+  if (pletSort.col===col) pletSort.dir*=-1; else { pletSort.col=col; pletSort.dir=1; }
+  renderPletinasTable();
+}
+
+function renderPletinasTable() {
+  const tipoEl = document.getElementById('plet-filter-tipo');
+  if (!tipoEl) return;
+  const tipos = [...new Set(pletinas.map(p=>p.tipo).filter(Boolean))].sort();
+  const curT = tipoEl.value;
+  tipoEl.innerHTML = '<option value="">Todos los tipos</option>' + tipos.map(t=>`<option${t===curT?' selected':''}>${t}</option>`).join('');
+
+  const q = (document.getElementById('plet-search')?.value||'').toLowerCase().trim();
+  const ft = tipoEl.value;
+
+  // Calcular pletinas necesarias por órdenes pendientes/parciales
+  const necesidades = calcPletinasNecesarias();
+
+  let flt = [...pletinas];
+  if (ft) flt = flt.filter(p=>p.tipo===ft);
+  if (q)  flt = flt.filter(p=>[p.sku,p.nombre,p.descripcion1,p.descripcion2,p.tipo].some(v=>String(v||'').toLowerCase().includes(q)));
+  flt.sort((a,b) => String(a[pletSort.col]||'').localeCompare(String(b[pletSort.col]||''),undefined,{numeric:true}) * pletSort.dir);
+
+  document.getElementById('count-label-plet').textContent = `— ${flt.length} registro${flt.length!==1?'s':''}`;
+  const tbody = document.getElementById('plet-body');
+  if (!flt.length) {
+    tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><p>Sin pletinas para mostrar</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = flt.map(p => {
+    // Buscar cuántas tiras de esta pletina se necesitan en órdenes pendientes
+    // Tipo de pletina se extrae de desc1: "PLETINA-ACERO-20x3/6mt/" → "20x3"
+    const tipoMatch = String(p.descripcion1||'').match(/(\d+x\d+)/);
+    const tipoPlet = tipoMatch ? tipoMatch[1] : null;
+    const nec = tipoPlet ? (necesidades[tipoPlet]||0) : 0;
+    const stock = parseInt(p.stock)||0;
+    const deficit = nec > stock;
+    return `<tr${deficit&&nec>0?' style="background:#fff5f5;"':''}>
+      <td><code style="background:#f1f5f9;padding:1px 6px;border-radius:3px;font-size:11px;">${esc(p.sku)}</code></td>
+      <td style="color:var(--text2);font-size:12px;">${esc(p.tipo)}</td>
+      <td style="font-weight:600;">${esc(p.nombre)}</td>
+      <td>${esc(p.descripcion1)}</td>
+      <td style="color:var(--text2);font-size:12px;">${esc(p.descripcion2)}</td>
+      <td>
+        <input type="number" min="0" value="${stock}"
+          style="width:70px;border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:13px;font-weight:600;text-align:right;"
+          onchange="updateStockPletina('${p.id}',this.value)"/>
+      </td>
+      <td style="font-size:12px;">
+        ${nec>0 ? `<span style="font-weight:700;color:${deficit?'#dc3545':'#0F6E56'};">${nec} tira${nec!==1?'s':''}</span>${deficit?` <span style="color:#dc3545;font-size:10px;">⚠️ déficit ${nec-stock}</span>`:''}` : '<span style="color:#94a3b8;">—</span>'}
+      </td>
+      <td style="display:flex;gap:4px;">
+        <button onclick="editarPletina('${p.id}')" style="background:#e0e7ff;color:#3730a3;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;font-weight:600;">Editar</button>
+        <button onclick="confirmarElimPletina('${p.id}')" style="background:#fee2e2;color:#dc3545;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;font-weight:600;">Eliminar</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// Calcula cuántas tiras de cada tipo de pletina (ej. "20x3") se necesitan
+// para todas las órdenes Pendientes/Parciales (incluye Órdenes y OF Logística)
+function calcPletinasNecesarias() {
+  const nec = {};
+  const todasOrdenes = [
+    ...orders.filter(o=>o.estado==='Pendiente'||o.estado==='Parcial'),
+    ...logOrders.filter(o=>o.estado==='Pendiente'||o.estado==='Parcial')
+  ];
+  for (const ord of todasOrdenes) {
+    const desc1 = String(ord.descripcion1||'').trim();
+    const qty   = parseInt(ord.cantidad)||0;
+    if (!qty) continue;
+    const bom = BOM_FRAMES[desc1];
+    if (!bom) continue;
+    for (const {p, lt} of bom) {
+      // Tiras de 6000mm con 10% pérdida: ceil(lt*1.1/6000) tiras por unidad × qty
+      const tirasPorUnidad = Math.ceil(lt*1.1/6000);
+      nec[p] = (nec[p]||0) + tirasPorUnidad * qty;
+    }
+  }
+  return nec;
+}
+
+function mostrarNecesidades() {
+  const panel = document.getElementById('plet-necesidades');
+  const body  = document.getElementById('plet-nec-body');
+  panel.style.display = 'block';
+  const nec = calcPletinasNecesarias();
+  const entradas = Object.entries(nec).sort((a,b)=>b[1]-a[1]);
+  if (!entradas.length) { body.innerHTML='<p style="color:#94a3b8;font-size:13px;">No hay órdenes pendientes con BOM conocido.</p>'; return; }
+  body.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">
+    ${entradas.map(([tipo,tiras])=>{
+      const stockPlet = pletinas.find(p=>String(p.descripcion1||'').includes(tipo));
+      const stock = parseInt(stockPlet?.stock)||0;
+      const ok = stock >= tiras;
+      return `<div style="background:${ok?'#f0fdf4':'#fff5f5'};border:1px solid ${ok?'#bbf7d0':'#fecaca'};border-radius:8px;padding:10px 14px;">
+        <div style="font-size:15px;font-weight:800;color:#1a202c;">${tipo}</div>
+        <div style="font-size:12px;color:#64748b;margin-top:2px;">Necesarias: <b style="color:${ok?'#0F6E56':'#dc3545'};">${tiras} tiras</b></div>
+        <div style="font-size:12px;color:#64748b;">Stock: <b>${stock} tiras</b></div>
+        ${!ok?`<div style="font-size:11px;color:#dc3545;font-weight:700;margin-top:4px;">⚠️ Déficit: ${tiras-stock} tiras</div>`:''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function abrirModalPletina() {
+  document.getElementById('modal-pletina').style.display = 'flex';
+  document.getElementById('modal-plet-title').textContent = 'Nueva Pletina';
+  document.getElementById('plet-sku').value = '';
+  document.getElementById('plet-tipo').value = '';
+  document.getElementById('plet-nombre').value = '';
+  document.getElementById('plet-desc1').value = '';
+  document.getElementById('plet-desc2').value = '';
+  document.getElementById('plet-stock').value = '0';
+  document.getElementById('plet-edit-id').value = '';
+  document.getElementById('modal-plet-error').textContent = '';
+  setTimeout(()=>document.getElementById('plet-sku').focus(),50);
+}
+
+function editarPletina(id) {
+  const p = pletinas.find(x=>String(x.id)===String(id));
+  if (!p) return;
+  abrirModalPletina();
+  document.getElementById('modal-plet-title').textContent = 'Editar Pletina';
+  document.getElementById('plet-sku').value = p.sku||'';
+  document.getElementById('plet-tipo').value = p.tipo||'';
+  document.getElementById('plet-nombre').value = p.nombre||'';
+  document.getElementById('plet-desc1').value = p.descripcion1||'';
+  document.getElementById('plet-desc2').value = p.descripcion2||'';
+  document.getElementById('plet-stock').value = p.stock||0;
+  document.getElementById('plet-edit-id').value = id;
+}
+
+function cerrarModalPletina() {
+  document.getElementById('modal-pletina').style.display = 'none';
+}
+
+async function guardarPletina() {
+  const errEl = document.getElementById('modal-plet-error');
+  errEl.textContent = '';
+  const sku  = document.getElementById('plet-sku').value.trim();
+  const tipo = document.getElementById('plet-tipo').value.trim();
+  const nombre = document.getElementById('plet-nombre').value.trim();
+  const desc1  = document.getElementById('plet-desc1').value.trim();
+  const desc2  = document.getElementById('plet-desc2').value.trim();
+  const stock  = parseInt(document.getElementById('plet-stock').value)||0;
+  const editId = document.getElementById('plet-edit-id').value;
+
+  if (!sku)  { errEl.textContent='El SKU es obligatorio'; return; }
+  if (!desc1){ errEl.textContent='La Descripción 1 es obligatoria'; return; }
+
+  const row = { sku, tipo, nombre, descripcion1:desc1, descripcion2:desc2, stock };
+
+  if (editId) {
+    pletinas = pletinas.map(p=>String(p.id)===String(editId)?{...p,...row}:p);
+    if (sbClient) {
+      const { error } = await sbClient.from(TABLE_PLET).update(row).eq('id',editId);
+      if (error) { errEl.textContent='Error al guardar: '+error.message; return; }
+    }
+    toast('Pletina actualizada','success');
+  } else {
+    if (sbClient) {
+      const { data, error } = await sbClient.from(TABLE_PLET).insert([row]).select();
+      if (error) { errEl.textContent='Error al guardar: '+error.message; return; }
+      pletinas.unshift(data[0]);
+    } else {
+      pletinas.unshift({...row, id:Date.now()});
+    }
+    toast('Pletina agregada','success');
+  }
+  cerrarModalPletina();
+  renderPletinasTable();
+}
+
+async function updateStockPletina(id, val) {
+  const stock = parseInt(val)||0;
+  pletinas = pletinas.map(p=>String(p.id)===String(id)?{...p,stock}:p);
+  if (sbClient) await sbClient.from(TABLE_PLET).update({stock}).eq('id',id);
+  renderPletinasTable();
+}
+
+async function confirmarElimPletina(id) {
+  if (!tienePermiso('eliminar')) { toast('No tienes permiso para eliminar','error'); return; }
+  const p = pletinas.find(x=>String(x.id)===String(id));
+  if (!confirm(`¿Eliminar la pletina SKU ${p?.sku||id}?`)) return;
+  pletinas = pletinas.filter(x=>String(x.id)!==String(id));
+  if (sbClient) await sbClient.from(TABLE_PLET).delete().eq('id',id);
+  renderPletinasTable();
+  toast('Pletina eliminada','success');
+}
+
+function exportCSVPletinas() {
+  if (!pletinas.length) { toast('Sin datos','error'); return; }
+  const h = ['SKU','Tipo','Nombre','Descripción 1','Descripción 2','Stock'];
+  const rows = pletinas.map(p=>[p.sku,p.tipo,p.nombre,p.descripcion1,p.descripcion2,p.stock||0].map(v=>`"${v||''}"`).join(','));
+  dlCSV([h.join(','),...rows].join('\n'),'pletinas_msteel.csv');
 }
 
 // ══════════════════════════════════════════════════════
