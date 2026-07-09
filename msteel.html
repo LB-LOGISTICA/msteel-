@@ -859,6 +859,2571 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
 
 <div id="toast"></div>
 
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --brand:#0F6E56; --brand-mid:#1D9E75; --brand-lt:#E1F5EE;
+  --surface:#fff; --bg:#f0f4f8; --border:#e2e8f0;
+  --text:#1a202c; --text2:#64748b;
+  --r:8px; --rl:12px;
+  --c0:#1D9E75;--c1:#3B82F6;--c2:#F59E0B;--c3:#EF4444;--c4:#8B5CF6;--c5:#06B6D4;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background-color .4s;}
+
+/* ── PAGES ── */
+.page{display:none;padding:1.25rem 1.5rem;}
+.page.active{display:block;}
+
+header{background:var(--brand);height:76px;display:flex;align-items:center;padding:0 1.5rem;gap:14px;position:sticky;top:0;z-index:200;transition:background .3s;}
+.logo-slot{width:52px;height:52px;border-radius:10px;overflow:hidden;cursor:pointer;flex-shrink:0;background:rgba(255,255,255,.15);border:2px dashed rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;transition:.2s;position:relative;}
+.logo-slot:hover{border-color:#fff;background:rgba(255,255,255,.25);}
+.logo-slot img{width:100%;height:100%;object-fit:contain;display:none;}
+.logo-slot svg{pointer-events:none;}
+.logo-slot input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+header h1{font-size:16px;font-weight:700;color:#fff;letter-spacing:.2px;white-space:nowrap;}
+header .hbadge{background:rgba(255,255,255,.18);color:#fff;font-size:10px;padding:2px 8px;border-radius:20px;white-space:nowrap;}
+
+/* centered nav */
+.nav-tabs{display:flex;gap:3px;position:absolute;left:50%;transform:translateX(-50%);}
+.nav-tab{color:rgba(255,255,255,.65);font-size:12px;font-weight:600;padding:7px 20px;border-radius:22px;cursor:pointer;border:none;background:none;transition:.15s;letter-spacing:.3px;white-space:nowrap;}
+.nav-tab:hover{color:#fff;background:rgba(255,255,255,.15);}
+.nav-tab.active{color:var(--brand);background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+
+/* right side header actions */
+.header-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.hdr-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;transition:.15s;white-space:nowrap;}
+.hdr-btn:hover{background:rgba(255,255,255,.25);}
+
+/* ── BG EDITOR PANEL ── */
+#bg-panel{display:none;position:fixed;top:70px;right:16px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:16px;width:260px;z-index:10000;box-shadow:0 8px 32px rgba(0,0,0,.15);}
+#bg-panel h4{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+#bg-panel h4 button{background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;line-height:1;}
+.bg-section{margin-bottom:12px;}
+.bg-section label{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:6px;}
+.bg-colors{display:flex;gap:6px;flex-wrap:wrap;}
+.bg-swatch{width:28px;height:28px;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:.15s;flex-shrink:0;}
+.bg-swatch:hover,.bg-swatch.active{border-color:var(--brand);transform:scale(1.1);}
+.bg-color-input{width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;margin-top:6px;}
+.bg-img-btn{width:100%;border:2px dashed var(--border);border-radius:8px;padding:10px;text-align:center;cursor:pointer;font-size:12px;color:var(--text2);transition:.15s;position:relative;overflow:hidden;}
+.bg-img-btn:hover{border-color:var(--brand-mid);color:var(--brand);background:var(--brand-lt);}
+.bg-img-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.bg-reset{width:100%;background:#f1f5f9;border:none;border-radius:6px;padding:7px;font-size:12px;cursor:pointer;font-weight:600;color:var(--text2);margin-top:4px;}
+.bg-reset:hover{background:#e2e8f0;}
+
+/* ── CONFIG BAR ── */
+#config-bar{display:none;}
+#config-bar strong{font-weight:700;}
+#config-bar input{padding:4px 8px;border:1px solid #ffc107;border-radius:5px;font-size:12px;background:#fffbf0;}
+#sb-url{width:260px;} #sb-key{width:340px;}
+#config-bar button{background:#856404;color:#fff;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;}
+#config-bar button:hover{background:#6d520a;}
+#conn-status{margin-left:auto;font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600;}
+#conn-status.ok{background:#d1fae5;color:#065f46;}
+#conn-status.err{background:#fee2e2;color:#991b1b;}
+#conn-status.pending{background:#e0e7ff;color:#3730a3;}
+
+/* ── PAGES ── */
+.page{display:none;padding:1.25rem 1.5rem;}
+.page.active{display:block;}
+
+/* ════════════════════════════════
+   ÓRDENES PAGE
+════════════════════════════════ */
+#upload-zone,#upload-zone-log{border:2px dashed var(--brand-mid);border-radius:var(--rl);background:var(--brand-lt);padding:.9rem 1.5rem;text-align:center;transition:.2s;margin-bottom:1rem;position:relative;}
+#upload-zone:hover,#upload-zone-log:hover{background:#c7eedd;border-color:var(--brand);}
+#upload-zone.dragover,#upload-zone-log.dragover{background:#b0e7d2;border-color:var(--brand);}
+#pdf-input,#pdf-input-bulk,#excel-input,#pdf-input-log,#pdf-input-bulk-log,#excel-input-log{display:none;}
+.upload-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:.15s;}
+.upload-btn.single{background:#fff;color:var(--brand);border:1.5px solid var(--brand-mid);}
+.upload-btn.single:hover{background:var(--brand-lt);}
+.upload-btn.bulk{background:var(--brand);color:#fff;}
+.upload-btn.bulk:hover{background:#0a5a45;}
+.upload-btn.excel{background:#1D6F42;color:#fff;}
+.upload-btn.excel:hover{background:#155232;}
+
+#progress-wrap,#progress-wrap-log{display:none;background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 1rem;margin-bottom:1rem;font-size:12px;color:var(--text2);align-items:center;gap:10px;}
+#progress-wrap.show,#progress-wrap-log.show{display:flex;}
+#progress-bar-wrap,#progress-bar-wrap-log{flex:1;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;}
+#progress-bar,#progress-bar-log{height:100%;background:var(--brand-mid);border-radius:3px;width:0%;transition:width .3s;}
+
+.bulk-item{display:flex;align-items:center;gap:10px;font-size:12px;padding:7px 10px;border-radius:var(--r);background:#f8fafc;border:1px solid var(--border);}
+.bulk-item .fname{flex:1;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fstatus{font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap;}
+.fstatus.waiting{background:#f1f5f9;color:var(--text2);}
+.fstatus.running{background:#e0e7ff;color:#3730a3;}
+.fstatus.done{background:#d1fae5;color:#065f46;}
+.fstatus.err{background:#fee2e2;color:#991b1b;}
+.bulk-progress{flex:1;height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;}
+.bulk-progress-bar{height:100%;background:var(--brand-mid);width:0%;transition:width .3s;}
+.frows{font-size:11px;color:var(--text2);}
+
+.ord-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:.75rem;flex-wrap:wrap;}
+.ord-toolbar h2{font-size:15px;font-weight:600;flex:1;}
+.filter-pill{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--border);cursor:pointer;background:#fff;color:var(--text2);transition:.15s;}
+.filter-pill.active{background:var(--brand);color:#fff;border-color:var(--brand);}
+.btn-primary{background:var(--brand);color:#fff;border:none;border-radius:var(--r);padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.btn-primary:hover{background:#0a5a45;}
+
+/* Orders table */
+.table-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--rl);overflow-x:auto;width:100%;}
+table.ord-tbl{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto;}
+table.ord-tbl thead tr{background:#f8fafc;border-bottom:1px solid var(--border);}
+table.ord-tbl th{padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);white-space:nowrap;}
+table.ord-tbl tbody tr{border-bottom:1px solid #f1f5f9;transition:background .1s;}
+table.ord-tbl tbody tr:hover{background:#f8fafc;}
+table.ord-tbl td{padding:7px 10px;vertical-align:middle;}
+.estado-select{border:none;border-radius:20px;padding:3px 22px 3px 8px;font-size:11px;font-weight:600;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 5px center;}
+.est-Pendiente{background:#fff3cd;color:#856404;}
+.est-Parcial{background:#cff4fc;color:#0c5460;}
+.est-Entregado{background:#d1fae5;color:#065f46;}
+.fi{border:1px solid var(--border);border-radius:var(--r);padding:4px 6px;font-size:11px;color:var(--text);background:transparent;cursor:pointer;width:116px;}
+.fi:focus{outline:2px solid var(--brand-mid);}
+.fi.cmt{width:120px;font-style:italic;}
+.fi.cmt:not(:placeholder-shown){font-style:normal;}
+.btn-del{background:none;border:none;cursor:pointer;color:#dc3545;padding:3px 5px;border-radius:4px;font-size:15px;line-height:1;}
+.btn-del:hover{background:#fee2e2;}
+.fi.vencida-date{border-color:#dc3545;color:#dc3545;}
+.btn-print-of{background:none;border:1px solid var(--border);cursor:pointer;color:var(--brand);padding:3px 7px;border-radius:4px;font-size:11px;font-weight:600;transition:.15s;white-space:nowrap;}
+.btn-print-of:hover{background:var(--brand-lt);border-color:var(--brand-mid);}
+.empty-state{text-align:center;padding:3rem;color:var(--text2);}
+.empty-state svg{opacity:.35;margin-bottom:12px;}
+.empty-state p{font-size:14px;} .empty-state small{font-size:12px;}
+
+/* ════════════════════════════════
+   DASHBOARD PAGE
+════════════════════════════════ */
+#filter-bar{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+#filter-bar label{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;}
+.fsel{border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--text);background:#fff;cursor:pointer;}
+.fsel:focus{outline:2px solid var(--brand-mid);}
+#rec-count{font-size:11px;color:var(--text2);}
+.reset-btn{margin-left:auto;background:var(--brand);color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;}
+.reset-btn:hover{background:#0a5a45;}
+
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:1rem;}
+.kpi{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;display:flex;flex-direction:column;gap:3px;}
+.kpi .klabel{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;}
+.kpi .kval{font-size:24px;font-weight:700;color:var(--text);line-height:1.1;}
+.kpi .ksub{font-size:11px;color:var(--text2);}
+.kbar{height:3px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden;}
+.kbar-fill{height:100%;border-radius:2px;transition:width .5s;}
+
+.chart-grid{display:grid;gap:10px;grid-template-columns:1fr 1fr;margin-bottom:10px;}
+.chart-grid.g3{grid-template-columns:1fr 1fr 1fr;}
+.chart-card{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:14px;display:flex;flex-direction:column;gap:8px;}
+.chart-card h3{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;}
+.ch-wrap{position:relative;min-height:220px;}
+.ch-wrap canvas{width:100%!important;}
+.ch-wrap.donut{min-height:200px;display:flex;align-items:center;justify-content:center;}
+
+/* ════════════════════════════════
+   DATA PAGE
+════════════════════════════════ */
+.data-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+.data-toolbar h2{font-size:15px;font-weight:600;flex:1;}
+#data-search{width:240px;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;}
+#data-search:focus{outline:2px solid var(--brand-mid);}
+.data-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--rl);overflow:auto;max-height:calc(100vh - 220px);}
+table.dtbl{width:100%;border-collapse:collapse;font-size:12px;}
+table.dtbl thead{position:sticky;top:0;z-index:2;}
+table.dtbl thead tr{background:#f8fafc;border-bottom:1px solid var(--border);}
+table.dtbl th{padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);white-space:nowrap;cursor:pointer;user-select:none;}
+table.dtbl th:hover{color:var(--brand);}
+table.dtbl th.sorted{color:var(--brand);}
+table.dtbl tbody tr{border-bottom:1px solid #f1f5f9;}
+table.dtbl tbody tr:hover{background:#f8fafc;}
+table.dtbl td{padding:7px 10px;vertical-align:middle;}
+.dbadge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;}
+.dbadge.Pendiente{background:#fff3cd;color:#856404;}
+.dbadge.Parcial{background:#cff4fc;color:#0c5460;}
+.dbadge.Entregado{background:#d1fae5;color:#065f46;}
+#data-footer{font-size:11px;color:var(--text2);margin-top:5px;text-align:right;}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:20px;right:20px;background:#1a202c;color:#fff;padding:10px 16px;border-radius:var(--r);font-size:12px;font-weight:500;display:none;z-index:9999;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.2);}
+#toast.show{display:block;animation:fin .2s;}
+#toast.success{background:var(--brand);}
+#toast.error{background:#dc3545;}
+@keyframes fin{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+/* ════════════════════════════════
+   MARCA PAGE
+════════════════════════════════ */
+.marca-layout{display:grid;grid-template-columns:340px 1fr;gap:1.5rem;align-items:start;}
+.marca-panel{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:1.5rem;display:flex;flex-direction:column;gap:1rem;}
+.marca-panel h2{font-size:14px;font-weight:700;color:var(--text);margin-bottom:.25rem;}
+.marca-panel p{font-size:12px;color:var(--text2);}
+.search-group{display:flex;flex-direction:column;gap:6px;}
+.search-group label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
+.search-group select,.search-group input{width:100%;border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;font-size:13px;color:var(--text);background:#fff;}
+.search-group select:focus,.search-group input:focus{outline:2px solid var(--brand-mid);}
+.results-list{display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;}
+.result-item{padding:10px 12px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:3px;}
+.result-item:hover{border-color:var(--brand-mid);background:var(--brand-lt);}
+.result-item.selected{border-color:var(--brand);background:var(--brand-lt);}
+.result-item .ri-sku{font-size:11px;font-weight:700;color:var(--brand);font-family:monospace;}
+.result-item .ri-desc{font-size:12px;font-weight:500;color:var(--text);}
+.result-item .ri-sub{font-size:11px;color:var(--text2);}
+.marca-empty{text-align:center;padding:2rem;color:var(--text2);font-size:13px;}
+.print-btn{width:100%;background:var(--brand);color:#fff;border:none;border-radius:var(--r);padding:10px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s;}
+.print-btn:hover{background:#0a5a45;}
+.print-btn:disabled{background:#94a3b8;cursor:not-allowed;}
+.qty-edit{display:flex;align-items:center;gap:8px;}
+.qty-edit input{width:80px;border:1px solid var(--border);border-radius:var(--r);padding:6px 10px;font-size:14px;font-weight:700;text-align:center;}
+
+/* ── PREVIEW (pantalla) ── */
+.marca-preview-wrap{background:#e2e8f0;border-radius:var(--rl);padding:1.5rem;display:flex;align-items:center;justify-content:center;min-height:420px;}
+.marca-card{background:#fff;width:100%;max-width:780px;border-radius:12px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.15);font-family:'Inter',system-ui,sans-serif;}
+.marca-top{background:linear-gradient(135deg,#0F6E56 0%,#1D9E75 60%,#5DCAA5 100%);padding:24px 32px 20px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;}
+.marca-top-left{display:flex;flex-direction:column;gap:6px;}
+.marca-logo-row{display:flex;align-items:center;gap:10px;}
+.marca-logo-box{width:36px;height:36px;background:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.marca-brand{color:#fff;font-size:22px;font-weight:800;letter-spacing:.5px;}
+.marca-subbrand{color:rgba(255,255,255,.75);font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;}
+.marca-title{color:#fff;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.9;margin-top:10px;}
+.marca-top-qr{background:#fff;border-radius:8px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:5px;}
+.marca-top-qr canvas{width:100px!important;height:100px!important;}
+.marca-top-qr span{font-size:10px;font-weight:700;color:var(--brand);letter-spacing:.5px;text-align:center;}
+.marca-body{padding:20px 32px 24px;display:grid;grid-template-columns:1fr 1fr;gap:0;flex:1;}
+.marca-field{padding:18px 0;border-bottom:1px solid #f1f5f9;display:flex;flex-direction:column;gap:6px;}
+.marca-field:nth-child(odd){padding-right:24px;border-right:1px solid #f1f5f9;}
+.marca-field:nth-child(even){padding-left:24px;}
+.marca-field:nth-last-child(-n+2){border-bottom:none;}
+.mf-label{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px;}
+.mf-value{font-size:24px;font-weight:700;color:#1a202c;line-height:1.2;}
+.mf-value.big{font-size:36px;color:var(--brand);}
+.mf-value.mono{font-family:'Courier New',monospace;font-size:22px;}
+.mf-of-interna{font-size:13px;color:var(--text2);font-weight:500;margin-top:2px;}
+.marca-footer{background:#f8fafc;border-top:1px solid #e2e8f0;padding:10px 32px;display:flex;align-items:center;justify-content:space-between;}
+.marca-footer-left{font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:.5px;}
+.marca-footer-right{display:flex;gap:6px;align-items:center;}
+.dot{width:6px;height:6px;border-radius:50%;}
+
+/* ── PRINT ── (manejado por printMarca() en ventana limpia) */
+
+@media(max-width:900px){.marca-layout{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<!-- ══════════ LOGIN OVERLAY ══════════ -->
+<div id="login-overlay" style="display:flex;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0F6E56,#1D9E75);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:2.2rem 2rem;width:340px;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="text-align:center;margin-bottom:1.4rem;">
+      <div style="font-size:13px;font-weight:800;color:#0F6E56;letter-spacing:1px;text-transform:uppercase;">MULTOTEC STEEL</div>
+      <div style="font-size:18px;font-weight:700;color:#1a202c;margin-top:4px;">Iniciar sesión</div>
+    </div>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Usuario</label>
+    <input id="login-usuario" type="text" autocomplete="username" placeholder="Ej: LBUSTOS"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:12px;outline:none;text-transform:uppercase;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Contraseña</label>
+    <input id="login-password" type="password" autocomplete="current-password" placeholder="••••••••"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:6px;outline:none;"
+      onkeydown="if(event.key==='Enter')intentarLogin()"/>
+    <div id="login-error" style="color:#dc3545;font-size:12px;font-weight:600;min-height:16px;margin-bottom:10px;"></div>
+    <button onclick="intentarLogin()" style="width:100%;background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;">Ingresar</button>
+    <div style="text-align:center;margin-top:14px;">
+      <button onclick="toggleBgPanel()" style="background:none;border:none;color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer;">🎨 Personalizar</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header id="main-header">
+  <!-- Logo editable -->
+  <div class="logo-slot" title="Haz clic para subir tu logo">
+    <svg id="logo-default" width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <rect x="2" y="8" width="5" height="10" rx="1" fill="#fff"/>
+      <rect x="7.5" y="5" width="5" height="13" rx="1" fill="rgba(255,255,255,.7)"/>
+      <rect x="13" y="2" width="5" height="16" rx="1" fill="rgba(255,255,255,.4)"/>
+    </svg>
+    <img id="logo-img" alt="Logo"/>
+    <input type="file" accept="image/*" onchange="uploadLogo(this)"/>
+  </div>
+
+  <h1>Órdenes de Fabricación</h1>
+  <span class="hbadge">MULTOTEC STEEL</span>
+
+  <!-- Tabs centrados -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('ordenes',this)">📋 Órdenes <span id="alert-badge" style="display:none;background:#dc3545;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:3px;"></span></button>
+    <button class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</button>
+    <button class="nav-tab" onclick="showPage('data',this)">🗄 Data</button>
+    <button class="nav-tab" onclick="showPage('pletinas',this)">🔩 Pletinas</button>
+    <button class="nav-tab" onclick="showPage('logistica',this)">🚚 OF Logística</button>
+    <button class="nav-tab" onclick="showPage('marca',this)">🏷 Marca</button>
+    <button class="nav-tab" id="nav-movimientos" style="display:none;" onclick="showPage('movimientos',this)">🛡 Movimientos</button>
+  </div>
+
+  <!-- Acciones derecha -->
+  <div class="header-right">
+    <span id="user-badge" style="font-size:11px;font-weight:600;color:rgba(255,255,255,.85);margin-right:6px;"></span>
+    <button class="hdr-btn" onclick="cerrarSesion()" title="Cerrar sesión">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Salir
+    </button>
+    <button class="hdr-btn" onclick="toggleBgPanel()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Personalizar
+    </button>
+  </div>
+</header>
+
+<!-- BG EDITOR PANEL -->
+<div id="bg-panel">
+  <h4>🎨 Personalizar <button onclick="toggleBgPanel()">✕</button></h4>
+
+  <div class="bg-section">
+    <label>🎨 Color del Header</label>
+    <div class="bg-colors">
+      <div class="bg-swatch" style="background:#0F6E56;" onclick="setHeaderColor('#0F6E56')" title="Verde Multotec"></div>
+      <div class="bg-swatch" style="background:#1e293b;" onclick="setHeaderColor('#1e293b')" title="Azul oscuro"></div>
+      <div class="bg-swatch" style="background:#1d4ed8;" onclick="setHeaderColor('#1d4ed8')" title="Azul"></div>
+      <div class="bg-swatch" style="background:#7c3aed;" onclick="setHeaderColor('#7c3aed')" title="Violeta"></div>
+      <div class="bg-swatch" style="background:#b91c1c;" onclick="setHeaderColor('#b91c1c')" title="Rojo"></div>
+      <div class="bg-swatch" style="background:#92400e;" onclick="setHeaderColor('#92400e')" title="Café"></div>
+      <div class="bg-swatch" style="background:#000000;" onclick="setHeaderColor('#000000')" title="Negro"></div>
+      <div class="bg-swatch" style="background:#374151;" onclick="setHeaderColor('#374151')" title="Gris"></div>
+    </div>
+    <input type="color" id="hdr-custom-color" class="bg-color-input" value="#0F6E56" oninput="setHeaderColor(this.value)" style="height:36px;padding:2px 4px;cursor:pointer;margin-top:6px;"/>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:8px 0;"/>
+
+  <div class="bg-section">
+    <label>🖼 Fondo de la página</label>
+    <div class="bg-colors">
+      <div class="bg-swatch" style="background:#f0f4f8;" onclick="setBgColor('#f0f4f8')"></div>
+      <div class="bg-swatch" style="background:#E1F5EE;" onclick="setBgColor('#E1F5EE')"></div>
+      <div class="bg-swatch" style="background:#1e293b;" onclick="setBgColor('#1e293b')"></div>
+      <div class="bg-swatch" style="background:#f8fafc;" onclick="setBgColor('#f8fafc')"></div>
+      <div class="bg-swatch" style="background:#fff7ed;" onclick="setBgColor('#fff7ed')"></div>
+      <div class="bg-swatch" style="background:#eff6ff;" onclick="setBgColor('#eff6ff')"></div>
+      <div class="bg-swatch" style="background:#fdf4ff;" onclick="setBgColor('#fdf4ff')"></div>
+    </div>
+    <input type="color" id="bg-custom-color" class="bg-color-input" value="#f0f4f8" oninput="setBgColor(this.value)" style="height:36px;padding:2px 4px;cursor:pointer;margin-top:6px;"/>
+  </div>
+  <div class="bg-section">
+    <label>📷 Imagen de fondo</label>
+    <div class="bg-img-btn">
+      📁 Subir imagen de fondo
+      <input type="file" accept="image/*" onchange="setBgImage(this)"/>
+    </div>
+  </div>
+  <button class="bg-reset" onclick="resetBg()">↩ Restablecer todo</button>
+</div>
+
+<!-- CONFIG BAR -->
+<div id="config-bar">
+  <strong>⚙ Supabase:</strong>
+  <input id="sb-url" type="text" placeholder="https://xxxx.supabase.co"/>
+  <input id="sb-key" type="text" placeholder="Anon Key"/>
+  <button onclick="initSupabase()">Conectar</button>
+  <button onclick="loadOrders()" style="background:#065f46;">↻ Recargar</button>
+  <span id="conn-status" class="pending">Sin conectar</span>
+</div>
+
+<!-- ══════════ ÓRDENES PAGE ══════════ -->
+<div id="page-ordenes" class="page active">
+
+  <!-- UPLOAD ZONE — compacta -->
+  <div id="upload-zone"
+       ondragover="event.preventDefault();this.classList.add('dragover')"
+       ondragleave="this.classList.remove('dragover')"
+       ondrop="handleDrop(event)">
+    <div style="display:flex;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:8px;color:var(--brand);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9,15 12,12 15,15"/></svg>
+        <span style="font-size:13px;font-weight:600;color:var(--brand);">Arrastra PDFs aquí o</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="upload-btn single" onclick="event.stopPropagation();document.getElementById('pdf-input').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          PDF 1 archivo
+        </button>
+        <button class="upload-btn bulk" onclick="event.stopPropagation();document.getElementById('pdf-input-bulk').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><polyline points="9,14 12,11 15,14"/></svg>
+          PDF Masivo
+        </button>
+        <button class="upload-btn excel" onclick="event.stopPropagation();document.getElementById('excel-input').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          Subir Excel
+        </button>
+        <button class="upload-btn" onclick="event.stopPropagation();downloadTemplate()" style="background:#065f46;color:#fff;border:none;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          📥 Plantilla
+        </button>
+      </div>
+    </div>
+    <input type="file" id="pdf-input" accept="application/pdf" onchange="handleFiles([this.files[0]])"/>
+    <input type="file" id="pdf-input-bulk" accept="application/pdf" multiple onchange="handleFiles(Array.from(this.files))"/>
+    <input type="file" id="excel-input" accept=".xlsx,.xls,.csv" onchange="handleExcel(this.files[0])"/>
+  </div>
+
+  <div id="progress-wrap">
+    <span id="progress-text">Procesando…</span>
+    <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+    <span id="progress-pct">0%</span>
+  </div>
+
+  <div id="bulk-panel" style="display:none;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:1rem;margin-bottom:1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <span style="font-size:13px;font-weight:600;">Carga masiva</span>
+      <span id="bulk-summary" style="font-size:12px;color:var(--text2);"></span>
+    </div>
+    <div id="bulk-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+  </div>
+
+  <!-- TOOLBAR con buscador -->
+  <div class="ord-toolbar">
+    <h2>Órdenes registradas <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label"></span></h2>
+    <input id="ord-search" type="text" placeholder="🔍 Buscar SKU, cliente, OF…" oninput="renderOrdTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:200px;outline:none;"/>
+    <select id="ord-filter-area" onchange="renderOrdTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todas las áreas</option>
+    </select>
+    <select id="ord-filter-cliente" onchange="renderOrdTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los clientes</option>
+    </select>
+    <button class="filter-pill active" onclick="setFilter('todos',this)">Todos</button>
+    <button class="filter-pill" onclick="setFilter('Pendiente',this)">Pendiente</button>
+    <button class="filter-pill" onclick="setFilter('Parcial',this)">Parcial</button>
+    <button class="filter-pill" onclick="setFilter('Entregado',this)">Entregado</button>
+    <button class="btn-primary" onclick="exportCSVOrd()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar CSV
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="ord-tbl">
+      <thead><tr>
+        <th>#</th>
+        <th onclick="sortOrd('fecha')" style="cursor:pointer;">Fecha ↕</th>
+        <th onclick="sortOrd('sku')" style="cursor:pointer;">SKU ↕</th>
+        <th onclick="sortOrd('descripcion1')" style="cursor:pointer;">Descripción 1 ↕</th>
+        <th>Descripción 2</th>
+        <th onclick="sortOrd('cantidad')" style="cursor:pointer;">Cantidad ↕</th>
+        <th>OC Cliente</th>
+        <th onclick="sortOrd('of_mch')" style="cursor:pointer;">OF MCH ↕</th>
+        <th>OF Interna</th>
+        <th onclick="sortOrd('cliente')" style="cursor:pointer;">Cliente ↕</th>
+        <th onclick="sortOrd('area')" style="cursor:pointer;">Área ↕</th>
+        <th onclick="sortOrd('estado')" style="cursor:pointer;">MSTEEL ↕</th>
+        <th onclick="sortOrd('fecha_entrega')" style="cursor:pointer;">F. Entrega ↕</th>
+        <th>F. Ingreso</th><th>F. Término</th><th onclick="sortOrd('msteel')" style="cursor:pointer;">Logística ↕</th><th>🖨</th><th></th>
+      </tr></thead>
+      <tbody id="ord-body">
+        <tr><td colspan="18"><div class="empty-state">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          <p>No hay órdenes registradas</p><small>Sube un PDF para comenzar</small>
+        </div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════ PLETINAS PAGE ══════════ -->
+<div id="page-pletinas" class="page">
+
+  <!-- TOOLBAR -->
+  <div class="ord-toolbar" style="flex-wrap:wrap;gap:8px;">
+    <h2>🔩 Pletinas <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label-plet"></span></h2>
+    <input id="plet-search" type="text" placeholder="🔍 Buscar SKU, nombre, descripción…" oninput="renderPletinasTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:220px;outline:none;"/>
+    <select id="plet-filter-tipo" onchange="renderPletinasTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los tipos</option>
+    </select>
+    <button class="btn-primary" onclick="abrirModalPletina()" style="background:#0F6E56;">
+      ＋ Nueva Pletina
+    </button>
+    <button class="btn-primary" onclick="mostrarNecesidades()" style="background:#7c3aed;">
+      📊 Pletinas necesarias
+    </button>
+    <button class="btn-primary" onclick="exportCSVPletinas()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar CSV
+    </button>
+  </div>
+
+  <!-- Panel necesidades de pletinas (se muestra al pulsar el botón) -->
+  <div id="plet-necesidades" style="display:none;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:1rem 1.2rem;margin-bottom:1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <strong style="font-size:13px;">📊 Pletinas requeridas por órdenes Pendientes/Parciales</strong>
+      <button onclick="document.getElementById('plet-necesidades').style.display='none'" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:16px;">✕</button>
+    </div>
+    <div id="plet-nec-body"></div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="ord-tbl">
+      <thead><tr>
+        <th>SKU</th><th>Tipo (Área)</th><th>Nombre</th>
+        <th onclick="sortPlet('descripcion1')" style="cursor:pointer;">Descripción 1 ↕</th>
+        <th>Descripción 2</th>
+        <th onclick="sortPlet('stock')" style="cursor:pointer;">Stock ↕</th>
+        <th>Pletinas en OF pendientes</th>
+        <th>Acciones</th>
+      </tr></thead>
+      <tbody id="plet-body">
+        <tr><td colspan="8"><div class="empty-state">
+          <p>No hay pletinas registradas</p><small>Haz clic en "Nueva Pletina" para agregar</small>
+        </div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal Pletina -->
+<div id="modal-pletina" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:1.8rem;width:420px;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.25);">
+    <h3 style="margin:0 0 1rem;font-size:16px;color:#1a202c;" id="modal-plet-title">Nueva Pletina</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">SKU</label>
+        <input id="plet-sku" type="text" placeholder="80001"
+          style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;box-sizing:border-box;"/>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Tipo (Área)</label>
+        <input id="plet-tipo" type="text" placeholder="RM"
+          style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;box-sizing:border-box;"/>
+      </div>
+    </div>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Nombre</label>
+    <input id="plet-nombre" type="text" placeholder="Pletina"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px;outline:none;box-sizing:border-box;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Descripción 1</label>
+    <input id="plet-desc1" type="text" placeholder="PLETINA-ACERO-20x3/6mt/"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px;outline:none;box-sizing:border-box;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Descripción 2</label>
+    <input id="plet-desc2" type="text" placeholder="ACERO-CARBONO-//Unidad"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px;outline:none;box-sizing:border-box;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Stock (unidades)</label>
+    <input id="plet-stock" type="number" min="0" value="0"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:6px;outline:none;box-sizing:border-box;"/>
+    <div id="modal-plet-error" style="color:#dc3545;font-size:12px;font-weight:600;min-height:16px;margin-bottom:10px;"></div>
+    <input type="hidden" id="plet-edit-id"/>
+    <div style="display:flex;gap:8px;">
+      <button onclick="cerrarModalPletina()" style="flex:1;background:none;border:1px solid #e2e8f0;border-radius:8px;padding:9px;font-size:13px;cursor:pointer;color:#64748b;">Cancelar</button>
+      <button onclick="guardarPletina()" style="flex:1;background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ OF LOGÍSTICA PAGE ══════════ -->
+<div id="page-logistica" class="page">
+
+  <!-- UPLOAD ZONE — compacta -->
+  <div id="upload-zone-log"
+       ondragover="event.preventDefault();this.classList.add('dragover')"
+       ondragleave="this.classList.remove('dragover')"
+       ondrop="handleDropLog(event)">
+    <div style="display:flex;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:8px;color:var(--brand);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9,15 12,12 15,15"/></svg>
+        <span style="font-size:13px;font-weight:600;color:var(--brand);">Arrastra PDFs aquí o</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="upload-btn single" onclick="event.stopPropagation();document.getElementById('pdf-input-log').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          PDF 1 archivo
+        </button>
+        <button class="upload-btn bulk" onclick="event.stopPropagation();document.getElementById('pdf-input-bulk-log').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><polyline points="9,14 12,11 15,14"/></svg>
+          PDF Masivo
+        </button>
+        <button class="upload-btn excel" onclick="event.stopPropagation();document.getElementById('excel-input-log').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          Subir Excel
+        </button>
+        <button class="upload-btn" onclick="event.stopPropagation();downloadTemplate()" style="background:#065f46;color:#fff;border:none;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          📥 Plantilla
+        </button>
+      </div>
+    </div>
+    <input type="file" id="pdf-input-log" accept="application/pdf" onchange="handleFilesLog([this.files[0]])"/>
+    <input type="file" id="pdf-input-bulk-log" accept="application/pdf" multiple onchange="handleFilesLog(Array.from(this.files))"/>
+    <input type="file" id="excel-input-log" accept=".xlsx,.xls,.csv" onchange="handleExcelLog(this.files[0])"/>
+  </div>
+
+  <div id="progress-wrap-log">
+    <span id="progress-text-log">Procesando…</span>
+    <div id="progress-bar-wrap-log"><div id="progress-bar-log"></div></div>
+    <span id="progress-pct-log">0%</span>
+  </div>
+
+  <div id="bulk-panel-log" style="display:none;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:1rem;margin-bottom:1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <span style="font-size:13px;font-weight:600;">Carga masiva</span>
+      <span id="bulk-summary-log" style="font-size:12px;color:var(--text2);"></span>
+    </div>
+    <div id="bulk-list-log" style="display:flex;flex-direction:column;gap:6px;"></div>
+  </div>
+
+  <!-- TOOLBAR con buscador -->
+  <div class="ord-toolbar log-toolbar">
+    <h2>OF Logística registradas <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label-log"></span></h2>
+    <input id="log-search" type="text" placeholder="🔍 Buscar SKU, cliente, OF…" oninput="renderLogTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:200px;outline:none;"/>
+    <select id="log-filter-area" onchange="renderLogTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todas las áreas</option>
+    </select>
+    <select id="log-filter-cliente" onchange="renderLogTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los clientes</option>
+    </select>
+    <button class="filter-pill active" onclick="setFilterLog('todos',this)">Todos</button>
+    <button class="filter-pill" onclick="setFilterLog('Pendiente',this)">Pendiente</button>
+    <button class="filter-pill" onclick="setFilterLog('Parcial',this)">Parcial</button>
+    <button class="filter-pill" onclick="setFilterLog('Entregado',this)">Entregado</button>
+    <button class="btn-primary" onclick="exportCSVLog()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar CSV
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="ord-tbl">
+      <thead><tr>
+        <th>#</th>
+        <th onclick="sortLog('fecha')" style="cursor:pointer;">Fecha ↕</th>
+        <th onclick="sortLog('sku')" style="cursor:pointer;">SKU ↕</th>
+        <th onclick="sortLog('descripcion1')" style="cursor:pointer;">Descripción 1 ↕</th>
+        <th>Descripción 2</th>
+        <th onclick="sortLog('cantidad')" style="cursor:pointer;">Cantidad ↕</th>
+        <th>OC Cliente</th>
+        <th onclick="sortLog('of_mch')" style="cursor:pointer;">OF MCH ↕</th>
+        <th>OF Interna</th>
+        <th onclick="sortLog('cliente')" style="cursor:pointer;">Cliente ↕</th>
+        <th onclick="sortLog('area')" style="cursor:pointer;">Área ↕</th>
+        <th onclick="sortLog('estado')" style="cursor:pointer;">Estado ↕</th>
+        <th>Comentarios</th><th>🖨</th><th></th>
+      </tr></thead>
+      <tbody id="log-body">
+        <tr><td colspan="15"><div class="empty-state">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          <p>No hay registros de OF Logística</p><small>Sube un PDF para comenzar</small>
+        </div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════ DASHBOARD PAGE ══════════ -->
+<div id="page-dashboard" class="page">
+  <div id="filter-bar">
+    <label>Filtros</label>
+    <select id="f-cliente" class="fsel" onchange="applyFilters()"><option value="">Todos los clientes</option></select>
+    <select id="f-area"    class="fsel" onchange="applyFilters()"><option value="">Todas las áreas</option></select>
+    <select id="f-estado"  class="fsel" onchange="applyFilters()">
+      <option value="">Todos los estados</option>
+      <option>Pendiente</option><option>Parcial</option><option>Entregado</option>
+    </select>
+    <select id="f-año"  class="fsel" onchange="applyFilters()"><option value="">Todos los años</option></select>
+    <select id="f-mes"  class="fsel" onchange="applyFilters()"><option value="">Todos los meses</option></select>
+    <label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Desde</label>
+    <input type="date" id="f-desde" class="fsel" style="padding:4px 8px;" onchange="applyFilters()"/>
+    <label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Hasta</label>
+    <input type="date" id="f-hasta" class="fsel" style="padding:4px 8px;" onchange="applyFilters()"/>
+    <span id="rec-count"></span>
+    <button class="reset-btn" onclick="resetFilters()">✕ Limpiar</button>
+  </div>
+
+  <div class="kpi-row" style="grid-template-columns:repeat(7,1fr);">
+    <div class="kpi"><span class="klabel">Total Órdenes</span><span class="kval" id="kpi-total">—</span><span class="ksub">registros</span></div>
+    <div class="kpi"><span class="klabel">Cantidad Total</span><span class="kval" id="kpi-qty">—</span><span class="ksub">unidades</span></div>
+    <div class="kpi"><span class="klabel">Entregadas</span><span class="kval" id="kpi-ent">—</span><span class="ksub" id="kpi-ent-s"></span><div class="kbar"><div class="kbar-fill" id="kb-ent" style="background:var(--c0)"></div></div></div>
+    <div class="kpi"><span class="klabel">Pendientes</span><span class="kval" id="kpi-pend">—</span><span class="ksub" id="kpi-pend-s"></span><div class="kbar"><div class="kbar-fill" id="kb-pend" style="background:var(--c2)"></div></div></div>
+    <div class="kpi"><span class="klabel">⚠️ Vencidas</span><span class="kval" id="kpi-venc" style="color:#dc3545;">—</span><span class="ksub">sin entregar</span><div class="kbar"><div class="kbar-fill" id="kb-venc" style="background:#dc3545;"></div></div></div>
+    <div class="kpi"><span class="klabel">Cumplimiento</span><span class="kval" id="kpi-cum">—</span><span class="ksub">a tiempo</span><div class="kbar"><div class="kbar-fill" id="kb-cum" style="background:var(--c1)"></div></div></div>
+    <div class="kpi"><span class="klabel">Días Prom.</span><span class="kval" id="kpi-dias">—</span><span class="ksub">ingreso→término</span></div>
+  </div>
+
+  <div class="chart-grid" style="margin-bottom:10px;">
+    <div class="chart-card"><h3>Descripción 2 × Cantidad</h3><div class="ch-wrap"><canvas id="ch-desc2"></canvas></div></div>
+    <div class="chart-card"><h3>Descripción 1 × Cantidad</h3><div class="ch-wrap"><canvas id="ch-desc1"></canvas></div></div>
+  </div>
+  <div class="chart-grid" style="margin-bottom:10px;">
+    <div class="chart-card"><h3>Cantidad por Mes</h3><div class="ch-wrap"><canvas id="ch-mes"></canvas></div></div>
+    <div class="chart-card"><h3>OF por Mes</h3><div class="ch-wrap"><canvas id="ch-of-mes"></canvas></div></div>
+  </div>
+  <div class="chart-grid g3">
+    <div class="chart-card"><h3>Cumplimiento de Entrega</h3><div class="ch-wrap donut"><canvas id="ch-cum"></canvas></div></div>
+    <div class="chart-card"><h3>MSTEEL de Órdenes</h3><div class="ch-wrap donut"><canvas id="ch-estado"></canvas></div></div>
+    <div class="chart-card"><h3>Top Clientes × Cantidad</h3><div class="ch-wrap"><canvas id="ch-cliente"></canvas></div></div>
+  </div>
+  <div class="chart-card" style="margin-top:10px;">
+    <h3>📊 Tabla Pareto — Descripción × Cantidad</h3>
+    <div id="pareto-table-wrap" style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="background:#f8fafc;border-bottom:1px solid var(--border);">
+            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);">#</th>
+            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);">Descripción</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text2);">Cantidad</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text2);">% del Total</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text2);">% Acumulado</th>
+            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);">Barra</th>
+          </tr>
+        </thead>
+        <tbody id="pareto-body">
+          <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text2);">Cargando datos…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ DATA PAGE ══════════ -->
+<div id="page-data" class="page">
+  <div class="data-toolbar">
+    <h2>Datos completos</h2>
+    <input id="data-search" type="text" placeholder="Buscar en cualquier columna…" oninput="renderDataTable()"/>
+    <button class="btn-primary" onclick="exportCSVData()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar CSV
+    </button>
+  </div>
+  <div class="data-wrap">
+    <table class="dtbl">
+      <thead><tr>
+        <th onclick="sortData('fecha')">Fecha <span>↕</span></th>
+        <th onclick="sortData('sku')">SKU <span>↕</span></th>
+        <th onclick="sortData('descripcion1')">Desc 1 <span>↕</span></th>
+        <th onclick="sortData('descripcion2')">Desc 2 <span>↕</span></th>
+        <th onclick="sortData('cantidad')" style="text-align:right;">Cant. <span>↕</span></th>
+        <th onclick="sortData('oc_cliente')">OC Cliente <span>↕</span></th>
+        <th onclick="sortData('of_mch')">OF MCH <span>↕</span></th>
+        <th onclick="sortData('of_interna')">OF Interna <span>↕</span></th>
+        <th onclick="sortData('cliente')">Cliente <span>↕</span></th>
+        <th onclick="sortData('area')">Área <span>↕</span></th>
+        <th onclick="sortData('estado')">MSTEEL <span>↕</span></th>
+        <th onclick="sortData('fecha_entrega')">F. Entrega <span>↕</span></th>
+        <th onclick="sortData('fecha_ingreso')">F. Ingreso <span>↕</span></th>
+        <th onclick="sortData('fecha_termino')">F. Término <span>↕</span></th>
+        <th onclick="sortData('msteel')">Logística <span>↕</span></th>
+      </tr></thead>
+      <tbody id="data-body">
+        <tr><td colspan="15"><div class="empty-state"><p>Conecta Supabase para ver los datos</p></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div id="data-footer"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+<!-- ══════════ MARCA PAGE ══════════ -->
+<div id="page-marca" class="page">
+  <div class="marca-layout">
+
+    <!-- LEFT PANEL: busqueda + controles -->
+    <div class="marca-panel">
+      <div>
+        <h2>🏷 Generador de Marca</h2>
+        <p>Busca por área o SKU para generar la etiqueta de identificación.</p>
+      </div>
+
+      <div class="search-group">
+        <label>Filtrar por Área</label>
+        <select id="m-area" onchange="marcaFilterArea()">
+          <option value="">Todas las áreas</option>
+        </select>
+      </div>
+
+      <div class="search-group">
+        <label>Buscar SKU o Descripción</label>
+        <input id="m-search" type="text" placeholder="Ej: IMPU-1403 o MSF-MC…" oninput="marcaSearch()"/>
+      </div>
+
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Resultados</div>
+        <div class="results-list" id="marca-results">
+          <div class="marca-empty">Escribe para buscar órdenes</div>
+        </div>
+      </div>
+
+      <div class="search-group" id="m-qty-wrap" style="display:none;">
+        <label>Cantidad (editable)</label>
+        <div class="qty-edit">
+          <button onclick="marcaQtyStep(-1)" style="width:32px;height:32px;border:1px solid var(--border);border-radius:var(--r);background:#fff;font-size:18px;cursor:pointer;font-weight:700;">−</button>
+          <input type="number" id="m-qty" min="1" value="1" oninput="marcaRefreshPreview()"/>
+          <button onclick="marcaQtyStep(1)"  style="width:32px;height:32px;border:1px solid var(--border);border-radius:var(--r);background:#fff;font-size:18px;cursor:pointer;font-weight:700;">+</button>
+        </div>
+      </div>
+
+      <button class="print-btn" id="m-print-btn" disabled onclick="printMarca()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Imprimir Marca (Carta horizontal)
+      </button>
+    </div>
+
+    <!-- RIGHT PANEL: preview -->
+    <div class="marca-preview-wrap" id="marca-preview-wrap">
+      <div style="text-align:center;color:#94a3b8;">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom:12px;opacity:.4"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+        <p style="font-size:14px;font-weight:500;">Selecciona una orden para previsualizar la marca</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════ MOVIMIENTOS PAGE (solo ADMIN) ══════════ -->
+<div id="page-movimientos" class="page">
+  <div class="ord-toolbar">
+    <h2>🛡 Movimientos <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label-mov"></span></h2>
+    <input id="mov-search" type="text" placeholder="🔍 Buscar usuario, módulo, acción…" oninput="renderMovimientosTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:240px;outline:none;"/>
+    <select id="mov-filter-usuario" onchange="renderMovimientosTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los usuarios</option>
+    </select>
+    <select id="mov-filter-modulo" onchange="renderMovimientosTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los módulos</option>
+    </select>
+    <button class="btn-primary" onclick="loadMovimientos()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Actualizar
+    </button>
+  </div>
+  <div class="table-wrap">
+    <table class="ord-tbl">
+      <thead><tr>
+        <th>Fecha / Hora</th><th>Usuario</th><th>Módulo</th><th>Acción</th><th>Detalle</th>
+      </tr></thead>
+      <tbody id="mov-body">
+        <tr><td colspan="5"><div class="empty-state">
+          <p>Sin movimientos registrados todavía</p>
+        </div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --brand:#0F6E56; --brand-mid:#1D9E75; --brand-lt:#E1F5EE;
+  --surface:#fff; --bg:#f0f4f8; --border:#e2e8f0;
+  --text:#1a202c; --text2:#64748b;
+  --r:8px; --rl:12px;
+  --c0:#1D9E75;--c1:#3B82F6;--c2:#F59E0B;--c3:#EF4444;--c4:#8B5CF6;--c5:#06B6D4;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background-color .4s;}
+
+/* ── PAGES ── */
+.page{display:none;padding:1.25rem 1.5rem;}
+.page.active{display:block;}
+
+header{background:var(--brand);height:76px;display:flex;align-items:center;padding:0 1.5rem;gap:14px;position:sticky;top:0;z-index:200;transition:background .3s;}
+.logo-slot{width:52px;height:52px;border-radius:10px;overflow:hidden;cursor:pointer;flex-shrink:0;background:rgba(255,255,255,.15);border:2px dashed rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;transition:.2s;position:relative;}
+.logo-slot:hover{border-color:#fff;background:rgba(255,255,255,.25);}
+.logo-slot img{width:100%;height:100%;object-fit:contain;display:none;}
+.logo-slot svg{pointer-events:none;}
+.logo-slot input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+header h1{font-size:16px;font-weight:700;color:#fff;letter-spacing:.2px;white-space:nowrap;}
+header .hbadge{background:rgba(255,255,255,.18);color:#fff;font-size:10px;padding:2px 8px;border-radius:20px;white-space:nowrap;}
+
+/* centered nav */
+.nav-tabs{display:flex;gap:3px;position:absolute;left:50%;transform:translateX(-50%);}
+.nav-tab{color:rgba(255,255,255,.65);font-size:12px;font-weight:600;padding:7px 20px;border-radius:22px;cursor:pointer;border:none;background:none;transition:.15s;letter-spacing:.3px;white-space:nowrap;}
+.nav-tab:hover{color:#fff;background:rgba(255,255,255,.15);}
+.nav-tab.active{color:var(--brand);background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+
+/* right side header actions */
+.header-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.hdr-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;transition:.15s;white-space:nowrap;}
+.hdr-btn:hover{background:rgba(255,255,255,.25);}
+
+/* ── BG EDITOR PANEL ── */
+#bg-panel{display:none;position:fixed;top:70px;right:16px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:16px;width:260px;z-index:10000;box-shadow:0 8px 32px rgba(0,0,0,.15);}
+#bg-panel h4{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+#bg-panel h4 button{background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;line-height:1;}
+.bg-section{margin-bottom:12px;}
+.bg-section label{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:6px;}
+.bg-colors{display:flex;gap:6px;flex-wrap:wrap;}
+.bg-swatch{width:28px;height:28px;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:.15s;flex-shrink:0;}
+.bg-swatch:hover,.bg-swatch.active{border-color:var(--brand);transform:scale(1.1);}
+.bg-color-input{width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;margin-top:6px;}
+.bg-img-btn{width:100%;border:2px dashed var(--border);border-radius:8px;padding:10px;text-align:center;cursor:pointer;font-size:12px;color:var(--text2);transition:.15s;position:relative;overflow:hidden;}
+.bg-img-btn:hover{border-color:var(--brand-mid);color:var(--brand);background:var(--brand-lt);}
+.bg-img-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.bg-reset{width:100%;background:#f1f5f9;border:none;border-radius:6px;padding:7px;font-size:12px;cursor:pointer;font-weight:600;color:var(--text2);margin-top:4px;}
+.bg-reset:hover{background:#e2e8f0;}
+
+/* ── CONFIG BAR ── */
+#config-bar{display:none;}
+#config-bar strong{font-weight:700;}
+#config-bar input{padding:4px 8px;border:1px solid #ffc107;border-radius:5px;font-size:12px;background:#fffbf0;}
+#sb-url{width:260px;} #sb-key{width:340px;}
+#config-bar button{background:#856404;color:#fff;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;}
+#config-bar button:hover{background:#6d520a;}
+#conn-status{margin-left:auto;font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600;}
+#conn-status.ok{background:#d1fae5;color:#065f46;}
+#conn-status.err{background:#fee2e2;color:#991b1b;}
+#conn-status.pending{background:#e0e7ff;color:#3730a3;}
+
+/* ── PAGES ── */
+.page{display:none;padding:1.25rem 1.5rem;}
+.page.active{display:block;}
+
+/* ════════════════════════════════
+   ÓRDENES PAGE
+════════════════════════════════ */
+#upload-zone,#upload-zone-log{border:2px dashed var(--brand-mid);border-radius:var(--rl);background:var(--brand-lt);padding:.9rem 1.5rem;text-align:center;transition:.2s;margin-bottom:1rem;position:relative;}
+#upload-zone:hover,#upload-zone-log:hover{background:#c7eedd;border-color:var(--brand);}
+#upload-zone.dragover,#upload-zone-log.dragover{background:#b0e7d2;border-color:var(--brand);}
+#pdf-input,#pdf-input-bulk,#excel-input,#pdf-input-log,#pdf-input-bulk-log,#excel-input-log{display:none;}
+.upload-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:.15s;}
+.upload-btn.single{background:#fff;color:var(--brand);border:1.5px solid var(--brand-mid);}
+.upload-btn.single:hover{background:var(--brand-lt);}
+.upload-btn.bulk{background:var(--brand);color:#fff;}
+.upload-btn.bulk:hover{background:#0a5a45;}
+.upload-btn.excel{background:#1D6F42;color:#fff;}
+.upload-btn.excel:hover{background:#155232;}
+
+#progress-wrap,#progress-wrap-log{display:none;background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 1rem;margin-bottom:1rem;font-size:12px;color:var(--text2);align-items:center;gap:10px;}
+#progress-wrap.show,#progress-wrap-log.show{display:flex;}
+#progress-bar-wrap,#progress-bar-wrap-log{flex:1;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;}
+#progress-bar,#progress-bar-log{height:100%;background:var(--brand-mid);border-radius:3px;width:0%;transition:width .3s;}
+
+.bulk-item{display:flex;align-items:center;gap:10px;font-size:12px;padding:7px 10px;border-radius:var(--r);background:#f8fafc;border:1px solid var(--border);}
+.bulk-item .fname{flex:1;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fstatus{font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap;}
+.fstatus.waiting{background:#f1f5f9;color:var(--text2);}
+.fstatus.running{background:#e0e7ff;color:#3730a3;}
+.fstatus.done{background:#d1fae5;color:#065f46;}
+.fstatus.err{background:#fee2e2;color:#991b1b;}
+.bulk-progress{flex:1;height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;}
+.bulk-progress-bar{height:100%;background:var(--brand-mid);width:0%;transition:width .3s;}
+.frows{font-size:11px;color:var(--text2);}
+
+.ord-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:.75rem;flex-wrap:wrap;}
+.ord-toolbar h2{font-size:15px;font-weight:600;flex:1;}
+.filter-pill{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--border);cursor:pointer;background:#fff;color:var(--text2);transition:.15s;}
+.filter-pill.active{background:var(--brand);color:#fff;border-color:var(--brand);}
+.btn-primary{background:var(--brand);color:#fff;border:none;border-radius:var(--r);padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.btn-primary:hover{background:#0a5a45;}
+
+/* Orders table */
+.table-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--rl);overflow-x:auto;width:100%;}
+table.ord-tbl{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto;}
+table.ord-tbl thead tr{background:#f8fafc;border-bottom:1px solid var(--border);}
+table.ord-tbl th{padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);white-space:nowrap;}
+table.ord-tbl tbody tr{border-bottom:1px solid #f1f5f9;transition:background .1s;}
+table.ord-tbl tbody tr:hover{background:#f8fafc;}
+table.ord-tbl td{padding:7px 10px;vertical-align:middle;}
+.estado-select{border:none;border-radius:20px;padding:3px 22px 3px 8px;font-size:11px;font-weight:600;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 5px center;}
+.est-Pendiente{background:#fff3cd;color:#856404;}
+.est-Parcial{background:#cff4fc;color:#0c5460;}
+.est-Entregado{background:#d1fae5;color:#065f46;}
+.fi{border:1px solid var(--border);border-radius:var(--r);padding:4px 6px;font-size:11px;color:var(--text);background:transparent;cursor:pointer;width:116px;}
+.fi:focus{outline:2px solid var(--brand-mid);}
+.fi.cmt{width:120px;font-style:italic;}
+.fi.cmt:not(:placeholder-shown){font-style:normal;}
+.btn-del{background:none;border:none;cursor:pointer;color:#dc3545;padding:3px 5px;border-radius:4px;font-size:15px;line-height:1;}
+.btn-del:hover{background:#fee2e2;}
+.fi.vencida-date{border-color:#dc3545;color:#dc3545;}
+.btn-print-of{background:none;border:1px solid var(--border);cursor:pointer;color:var(--brand);padding:3px 7px;border-radius:4px;font-size:11px;font-weight:600;transition:.15s;white-space:nowrap;}
+.btn-print-of:hover{background:var(--brand-lt);border-color:var(--brand-mid);}
+.empty-state{text-align:center;padding:3rem;color:var(--text2);}
+.empty-state svg{opacity:.35;margin-bottom:12px;}
+.empty-state p{font-size:14px;} .empty-state small{font-size:12px;}
+
+/* ════════════════════════════════
+   DASHBOARD PAGE
+════════════════════════════════ */
+#filter-bar{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+#filter-bar label{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;}
+.fsel{border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--text);background:#fff;cursor:pointer;}
+.fsel:focus{outline:2px solid var(--brand-mid);}
+#rec-count{font-size:11px;color:var(--text2);}
+.reset-btn{margin-left:auto;background:var(--brand);color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;}
+.reset-btn:hover{background:#0a5a45;}
+
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:1rem;}
+.kpi{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;display:flex;flex-direction:column;gap:3px;}
+.kpi .klabel{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;}
+.kpi .kval{font-size:24px;font-weight:700;color:var(--text);line-height:1.1;}
+.kpi .ksub{font-size:11px;color:var(--text2);}
+.kbar{height:3px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden;}
+.kbar-fill{height:100%;border-radius:2px;transition:width .5s;}
+
+.chart-grid{display:grid;gap:10px;grid-template-columns:1fr 1fr;margin-bottom:10px;}
+.chart-grid.g3{grid-template-columns:1fr 1fr 1fr;}
+.chart-card{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:14px;display:flex;flex-direction:column;gap:8px;}
+.chart-card h3{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;}
+.ch-wrap{position:relative;min-height:220px;}
+.ch-wrap canvas{width:100%!important;}
+.ch-wrap.donut{min-height:200px;display:flex;align-items:center;justify-content:center;}
+
+/* ════════════════════════════════
+   DATA PAGE
+════════════════════════════════ */
+.data-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+.data-toolbar h2{font-size:15px;font-weight:600;flex:1;}
+#data-search{width:240px;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;}
+#data-search:focus{outline:2px solid var(--brand-mid);}
+.data-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--rl);overflow:auto;max-height:calc(100vh - 220px);}
+table.dtbl{width:100%;border-collapse:collapse;font-size:12px;}
+table.dtbl thead{position:sticky;top:0;z-index:2;}
+table.dtbl thead tr{background:#f8fafc;border-bottom:1px solid var(--border);}
+table.dtbl th{padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);white-space:nowrap;cursor:pointer;user-select:none;}
+table.dtbl th:hover{color:var(--brand);}
+table.dtbl th.sorted{color:var(--brand);}
+table.dtbl tbody tr{border-bottom:1px solid #f1f5f9;}
+table.dtbl tbody tr:hover{background:#f8fafc;}
+table.dtbl td{padding:7px 10px;vertical-align:middle;}
+.dbadge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;}
+.dbadge.Pendiente{background:#fff3cd;color:#856404;}
+.dbadge.Parcial{background:#cff4fc;color:#0c5460;}
+.dbadge.Entregado{background:#d1fae5;color:#065f46;}
+#data-footer{font-size:11px;color:var(--text2);margin-top:5px;text-align:right;}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:20px;right:20px;background:#1a202c;color:#fff;padding:10px 16px;border-radius:var(--r);font-size:12px;font-weight:500;display:none;z-index:9999;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.2);}
+#toast.show{display:block;animation:fin .2s;}
+#toast.success{background:var(--brand);}
+#toast.error{background:#dc3545;}
+@keyframes fin{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+/* ════════════════════════════════
+   MARCA PAGE
+════════════════════════════════ */
+.marca-layout{display:grid;grid-template-columns:340px 1fr;gap:1.5rem;align-items:start;}
+.marca-panel{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:1.5rem;display:flex;flex-direction:column;gap:1rem;}
+.marca-panel h2{font-size:14px;font-weight:700;color:var(--text);margin-bottom:.25rem;}
+.marca-panel p{font-size:12px;color:var(--text2);}
+.search-group{display:flex;flex-direction:column;gap:6px;}
+.search-group label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
+.search-group select,.search-group input{width:100%;border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;font-size:13px;color:var(--text);background:#fff;}
+.search-group select:focus,.search-group input:focus{outline:2px solid var(--brand-mid);}
+.results-list{display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;}
+.result-item{padding:10px 12px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:3px;}
+.result-item:hover{border-color:var(--brand-mid);background:var(--brand-lt);}
+.result-item.selected{border-color:var(--brand);background:var(--brand-lt);}
+.result-item .ri-sku{font-size:11px;font-weight:700;color:var(--brand);font-family:monospace;}
+.result-item .ri-desc{font-size:12px;font-weight:500;color:var(--text);}
+.result-item .ri-sub{font-size:11px;color:var(--text2);}
+.marca-empty{text-align:center;padding:2rem;color:var(--text2);font-size:13px;}
+.print-btn{width:100%;background:var(--brand);color:#fff;border:none;border-radius:var(--r);padding:10px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s;}
+.print-btn:hover{background:#0a5a45;}
+.print-btn:disabled{background:#94a3b8;cursor:not-allowed;}
+.qty-edit{display:flex;align-items:center;gap:8px;}
+.qty-edit input{width:80px;border:1px solid var(--border);border-radius:var(--r);padding:6px 10px;font-size:14px;font-weight:700;text-align:center;}
+
+/* ── PREVIEW (pantalla) ── */
+.marca-preview-wrap{background:#e2e8f0;border-radius:var(--rl);padding:1.5rem;display:flex;align-items:center;justify-content:center;min-height:420px;}
+.marca-card{background:#fff;width:100%;max-width:780px;border-radius:12px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.15);font-family:'Inter',system-ui,sans-serif;}
+.marca-top{background:linear-gradient(135deg,#0F6E56 0%,#1D9E75 60%,#5DCAA5 100%);padding:24px 32px 20px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;}
+.marca-top-left{display:flex;flex-direction:column;gap:6px;}
+.marca-logo-row{display:flex;align-items:center;gap:10px;}
+.marca-logo-box{width:36px;height:36px;background:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.marca-brand{color:#fff;font-size:22px;font-weight:800;letter-spacing:.5px;}
+.marca-subbrand{color:rgba(255,255,255,.75);font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;}
+.marca-title{color:#fff;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.9;margin-top:10px;}
+.marca-top-qr{background:#fff;border-radius:8px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:5px;}
+.marca-top-qr canvas{width:100px!important;height:100px!important;}
+.marca-top-qr span{font-size:10px;font-weight:700;color:var(--brand);letter-spacing:.5px;text-align:center;}
+.marca-body{padding:20px 32px 24px;display:grid;grid-template-columns:1fr 1fr;gap:0;flex:1;}
+.marca-field{padding:18px 0;border-bottom:1px solid #f1f5f9;display:flex;flex-direction:column;gap:6px;}
+.marca-field:nth-child(odd){padding-right:24px;border-right:1px solid #f1f5f9;}
+.marca-field:nth-child(even){padding-left:24px;}
+.marca-field:nth-last-child(-n+2){border-bottom:none;}
+.mf-label{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px;}
+.mf-value{font-size:24px;font-weight:700;color:#1a202c;line-height:1.2;}
+.mf-value.big{font-size:36px;color:var(--brand);}
+.mf-value.mono{font-family:'Courier New',monospace;font-size:22px;}
+.mf-of-interna{font-size:13px;color:var(--text2);font-weight:500;margin-top:2px;}
+.marca-footer{background:#f8fafc;border-top:1px solid #e2e8f0;padding:10px 32px;display:flex;align-items:center;justify-content:space-between;}
+.marca-footer-left{font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:.5px;}
+.marca-footer-right{display:flex;gap:6px;align-items:center;}
+.dot{width:6px;height:6px;border-radius:50%;}
+
+/* ── PRINT ── (manejado por printMarca() en ventana limpia) */
+
+@media(max-width:900px){.marca-layout{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<!-- ══════════ LOGIN OVERLAY ══════════ -->
+<div id="login-overlay" style="display:flex;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0F6E56,#1D9E75);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:2.2rem 2rem;width:340px;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="text-align:center;margin-bottom:1.4rem;">
+      <div style="font-size:13px;font-weight:800;color:#0F6E56;letter-spacing:1px;text-transform:uppercase;">MULTOTEC STEEL</div>
+      <div style="font-size:18px;font-weight:700;color:#1a202c;margin-top:4px;">Iniciar sesión</div>
+    </div>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Usuario</label>
+    <input id="login-usuario" type="text" autocomplete="username" placeholder="Ej: LBUSTOS"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:12px;outline:none;text-transform:uppercase;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Contraseña</label>
+    <input id="login-password" type="password" autocomplete="current-password" placeholder="••••••••"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:6px;outline:none;"
+      onkeydown="if(event.key==='Enter')intentarLogin()"/>
+    <div id="login-error" style="color:#dc3545;font-size:12px;font-weight:600;min-height:16px;margin-bottom:10px;"></div>
+    <button onclick="intentarLogin()" style="width:100%;background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;">Ingresar</button>
+    <div style="text-align:center;margin-top:14px;">
+      <button onclick="toggleBgPanel()" style="background:none;border:none;color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer;">🎨 Personalizar</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header id="main-header">
+  <!-- Logo editable -->
+  <div class="logo-slot" title="Haz clic para subir tu logo">
+    <svg id="logo-default" width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <rect x="2" y="8" width="5" height="10" rx="1" fill="#fff"/>
+      <rect x="7.5" y="5" width="5" height="13" rx="1" fill="rgba(255,255,255,.7)"/>
+      <rect x="13" y="2" width="5" height="16" rx="1" fill="rgba(255,255,255,.4)"/>
+    </svg>
+    <img id="logo-img" alt="Logo"/>
+    <input type="file" accept="image/*" onchange="uploadLogo(this)"/>
+  </div>
+
+  <h1>Órdenes de Fabricación</h1>
+  <span class="hbadge">MULTOTEC STEEL</span>
+
+  <!-- Tabs centrados -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('ordenes',this)">📋 Órdenes <span id="alert-badge" style="display:none;background:#dc3545;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:3px;"></span></button>
+    <button class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</button>
+    <button class="nav-tab" onclick="showPage('data',this)">🗄 Data</button>
+    <button class="nav-tab" onclick="showPage('pletinas',this)">🔩 Pletinas</button>
+    <button class="nav-tab" onclick="showPage('logistica',this)">🚚 OF Logística</button>
+    <button class="nav-tab" onclick="showPage('marca',this)">🏷 Marca</button>
+    <button class="nav-tab" id="nav-movimientos" style="display:none;" onclick="showPage('movimientos',this)">🛡 Movimientos</button>
+  </div>
+
+  <!-- Acciones derecha -->
+  <div class="header-right">
+    <span id="user-badge" style="font-size:11px;font-weight:600;color:rgba(255,255,255,.85);margin-right:6px;"></span>
+    <button class="hdr-btn" onclick="cerrarSesion()" title="Cerrar sesión">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Salir
+    </button>
+    <button class="hdr-btn" onclick="toggleBgPanel()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Personalizar
+    </button>
+  </div>
+</header>
+
+<!-- BG EDITOR PANEL -->
+<div id="bg-panel">
+  <h4>🎨 Personalizar <button onclick="toggleBgPanel()">✕</button></h4>
+
+  <div class="bg-section">
+    <label>🎨 Color del Header</label>
+    <div class="bg-colors">
+      <div class="bg-swatch" style="background:#0F6E56;" onclick="setHeaderColor('#0F6E56')" title="Verde Multotec"></div>
+      <div class="bg-swatch" style="background:#1e293b;" onclick="setHeaderColor('#1e293b')" title="Azul oscuro"></div>
+      <div class="bg-swatch" style="background:#1d4ed8;" onclick="setHeaderColor('#1d4ed8')" title="Azul"></div>
+      <div class="bg-swatch" style="background:#7c3aed;" onclick="setHeaderColor('#7c3aed')" title="Violeta"></div>
+      <div class="bg-swatch" style="background:#b91c1c;" onclick="setHeaderColor('#b91c1c')" title="Rojo"></div>
+      <div class="bg-swatch" style="background:#92400e;" onclick="setHeaderColor('#92400e')" title="Café"></div>
+      <div class="bg-swatch" style="background:#000000;" onclick="setHeaderColor('#000000')" title="Negro"></div>
+      <div class="bg-swatch" style="background:#374151;" onclick="setHeaderColor('#374151')" title="Gris"></div>
+    </div>
+    <input type="color" id="hdr-custom-color" class="bg-color-input" value="#0F6E56" oninput="setHeaderColor(this.value)" style="height:36px;padding:2px 4px;cursor:pointer;margin-top:6px;"/>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:8px 0;"/>
+
+  <div class="bg-section">
+    <label>🖼 Fondo de la página</label>
+    <div class="bg-colors">
+      <div class="bg-swatch" style="background:#f0f4f8;" onclick="setBgColor('#f0f4f8')"></div>
+      <div class="bg-swatch" style="background:#E1F5EE;" onclick="setBgColor('#E1F5EE')"></div>
+      <div class="bg-swatch" style="background:#1e293b;" onclick="setBgColor('#1e293b')"></div>
+      <div class="bg-swatch" style="background:#f8fafc;" onclick="setBgColor('#f8fafc')"></div>
+      <div class="bg-swatch" style="background:#fff7ed;" onclick="setBgColor('#fff7ed')"></div>
+      <div class="bg-swatch" style="background:#eff6ff;" onclick="setBgColor('#eff6ff')"></div>
+      <div class="bg-swatch" style="background:#fdf4ff;" onclick="setBgColor('#fdf4ff')"></div>
+    </div>
+    <input type="color" id="bg-custom-color" class="bg-color-input" value="#f0f4f8" oninput="setBgColor(this.value)" style="height:36px;padding:2px 4px;cursor:pointer;margin-top:6px;"/>
+  </div>
+  <div class="bg-section">
+    <label>📷 Imagen de fondo</label>
+    <div class="bg-img-btn">
+      📁 Subir imagen de fondo
+      <input type="file" accept="image/*" onchange="setBgImage(this)"/>
+    </div>
+  </div>
+  <button class="bg-reset" onclick="resetBg()">↩ Restablecer todo</button>
+</div>
+
+<!-- CONFIG BAR -->
+<div id="config-bar">
+  <strong>⚙ Supabase:</strong>
+  <input id="sb-url" type="text" placeholder="https://xxxx.supabase.co"/>
+  <input id="sb-key" type="text" placeholder="Anon Key"/>
+  <button onclick="initSupabase()">Conectar</button>
+  <button onclick="loadOrders()" style="background:#065f46;">↻ Recargar</button>
+  <span id="conn-status" class="pending">Sin conectar</span>
+</div>
+
+<!-- ══════════ ÓRDENES PAGE ══════════ -->
+<div id="page-ordenes" class="page active">
+
+  <!-- UPLOAD ZONE — compacta -->
+  <div id="upload-zone"
+       ondragover="event.preventDefault();this.classList.add('dragover')"
+       ondragleave="this.classList.remove('dragover')"
+       ondrop="handleDrop(event)">
+    <div style="display:flex;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:8px;color:var(--brand);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9,15 12,12 15,15"/></svg>
+        <span style="font-size:13px;font-weight:600;color:var(--brand);">Arrastra PDFs aquí o</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="upload-btn single" onclick="event.stopPropagation();document.getElementById('pdf-input').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          PDF 1 archivo
+        </button>
+        <button class="upload-btn bulk" onclick="event.stopPropagation();document.getElementById('pdf-input-bulk').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><polyline points="9,14 12,11 15,14"/></svg>
+          PDF Masivo
+        </button>
+        <button class="upload-btn excel" onclick="event.stopPropagation();document.getElementById('excel-input').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          Subir Excel
+        </button>
+        <button class="upload-btn" onclick="event.stopPropagation();downloadTemplate()" style="background:#065f46;color:#fff;border:none;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          📥 Plantilla
+        </button>
+      </div>
+    </div>
+    <input type="file" id="pdf-input" accept="application/pdf" onchange="handleFiles([this.files[0]])"/>
+    <input type="file" id="pdf-input-bulk" accept="application/pdf" multiple onchange="handleFiles(Array.from(this.files))"/>
+    <input type="file" id="excel-input" accept=".xlsx,.xls,.csv" onchange="handleExcel(this.files[0])"/>
+  </div>
+
+  <div id="progress-wrap">
+    <span id="progress-text">Procesando…</span>
+    <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+    <span id="progress-pct">0%</span>
+  </div>
+
+  <div id="bulk-panel" style="display:none;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:1rem;margin-bottom:1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <span style="font-size:13px;font-weight:600;">Carga masiva</span>
+      <span id="bulk-summary" style="font-size:12px;color:var(--text2);"></span>
+    </div>
+    <div id="bulk-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+  </div>
+
+  <!-- TOOLBAR con buscador -->
+  <div class="ord-toolbar">
+    <h2>Órdenes registradas <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label"></span></h2>
+    <input id="ord-search" type="text" placeholder="🔍 Buscar SKU, cliente, OF…" oninput="renderOrdTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:200px;outline:none;"/>
+    <select id="ord-filter-area" onchange="renderOrdTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todas las áreas</option>
+    </select>
+    <select id="ord-filter-cliente" onchange="renderOrdTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los clientes</option>
+    </select>
+    <button class="filter-pill active" onclick="setFilter('todos',this)">Todos</button>
+    <button class="filter-pill" onclick="setFilter('Pendiente',this)">Pendiente</button>
+    <button class="filter-pill" onclick="setFilter('Parcial',this)">Parcial</button>
+    <button class="filter-pill" onclick="setFilter('Entregado',this)">Entregado</button>
+    <button class="btn-primary" onclick="exportCSVOrd()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar CSV
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="ord-tbl">
+      <thead><tr>
+        <th>#</th>
+        <th onclick="sortOrd('fecha')" style="cursor:pointer;">Fecha ↕</th>
+        <th onclick="sortOrd('sku')" style="cursor:pointer;">SKU ↕</th>
+        <th onclick="sortOrd('descripcion1')" style="cursor:pointer;">Descripción 1 ↕</th>
+        <th>Descripción 2</th>
+        <th onclick="sortOrd('cantidad')" style="cursor:pointer;">Cantidad ↕</th>
+        <th>OC Cliente</th>
+        <th onclick="sortOrd('of_mch')" style="cursor:pointer;">OF MCH ↕</th>
+        <th>OF Interna</th>
+        <th onclick="sortOrd('cliente')" style="cursor:pointer;">Cliente ↕</th>
+        <th onclick="sortOrd('area')" style="cursor:pointer;">Área ↕</th>
+        <th onclick="sortOrd('estado')" style="cursor:pointer;">MSTEEL ↕</th>
+        <th onclick="sortOrd('fecha_entrega')" style="cursor:pointer;">F. Entrega ↕</th>
+        <th>F. Ingreso</th><th>F. Término</th><th onclick="sortOrd('msteel')" style="cursor:pointer;">Logística ↕</th><th>🖨</th><th></th>
+      </tr></thead>
+      <tbody id="ord-body">
+        <tr><td colspan="18"><div class="empty-state">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          <p>No hay órdenes registradas</p><small>Sube un PDF para comenzar</small>
+        </div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════ PLETINAS PAGE ══════════ -->
+<div id="page-pletinas" class="page">
+
+  <!-- TOOLBAR -->
+  <div class="ord-toolbar" style="flex-wrap:wrap;gap:8px;">
+    <h2>🔩 Pletinas <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label-plet"></span></h2>
+    <input id="plet-search" type="text" placeholder="🔍 Buscar SKU, nombre, descripción…" oninput="renderPletinasTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:220px;outline:none;"/>
+    <select id="plet-filter-tipo" onchange="renderPletinasTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los tipos</option>
+    </select>
+    <button class="btn-primary" onclick="abrirModalPletina()" style="background:#0F6E56;">
+      ＋ Nueva Pletina
+    </button>
+    <button class="btn-primary" onclick="mostrarNecesidades()" style="background:#7c3aed;">
+      📊 Pletinas necesarias
+    </button>
+    <button class="btn-primary" onclick="exportCSVPletinas()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar CSV
+    </button>
+  </div>
+
+  <!-- Panel necesidades de pletinas (se muestra al pulsar el botón) -->
+  <div id="plet-necesidades" style="display:none;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:1rem 1.2rem;margin-bottom:1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <strong style="font-size:13px;">📊 Pletinas requeridas por órdenes Pendientes/Parciales</strong>
+      <button onclick="document.getElementById('plet-necesidades').style.display='none'" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:16px;">✕</button>
+    </div>
+    <div id="plet-nec-body"></div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="ord-tbl">
+      <thead><tr>
+        <th>SKU</th><th>Tipo (Área)</th><th>Nombre</th>
+        <th onclick="sortPlet('descripcion1')" style="cursor:pointer;">Descripción 1 ↕</th>
+        <th>Descripción 2</th>
+        <th onclick="sortPlet('stock')" style="cursor:pointer;">Stock ↕</th>
+        <th>Pletinas en OF pendientes</th>
+        <th>Acciones</th>
+      </tr></thead>
+      <tbody id="plet-body">
+        <tr><td colspan="8"><div class="empty-state">
+          <p>No hay pletinas registradas</p><small>Haz clic en "Nueva Pletina" para agregar</small>
+        </div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal Pletina -->
+<div id="modal-pletina" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:1.8rem;width:420px;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.25);">
+    <h3 style="margin:0 0 1rem;font-size:16px;color:#1a202c;" id="modal-plet-title">Nueva Pletina</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">SKU</label>
+        <input id="plet-sku" type="text" placeholder="80001"
+          style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;box-sizing:border-box;"/>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Tipo (Área)</label>
+        <input id="plet-tipo" type="text" placeholder="RM"
+          style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;box-sizing:border-box;"/>
+      </div>
+    </div>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Nombre</label>
+    <input id="plet-nombre" type="text" placeholder="Pletina"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px;outline:none;box-sizing:border-box;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Descripción 1</label>
+    <input id="plet-desc1" type="text" placeholder="PLETINA-ACERO-20x3/6mt/"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px;outline:none;box-sizing:border-box;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Descripción 2</label>
+    <input id="plet-desc2" type="text" placeholder="ACERO-CARBONO-//Unidad"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px;outline:none;box-sizing:border-box;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Stock (unidades)</label>
+    <input id="plet-stock" type="number" min="0" value="0"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:6px;outline:none;box-sizing:border-box;"/>
+    <div id="modal-plet-error" style="color:#dc3545;font-size:12px;font-weight:600;min-height:16px;margin-bottom:10px;"></div>
+    <input type="hidden" id="plet-edit-id"/>
+    <div style="display:flex;gap:8px;">
+      <button onclick="cerrarModalPletina()" style="flex:1;background:none;border:1px solid #e2e8f0;border-radius:8px;padding:9px;font-size:13px;cursor:pointer;color:#64748b;">Cancelar</button>
+      <button onclick="guardarPletina()" style="flex:1;background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ OF LOGÍSTICA PAGE ══════════ -->
+<div id="page-logistica" class="page">
+
+  <!-- UPLOAD ZONE — compacta -->
+  <div id="upload-zone-log"
+       ondragover="event.preventDefault();this.classList.add('dragover')"
+       ondragleave="this.classList.remove('dragover')"
+       ondrop="handleDropLog(event)">
+    <div style="display:flex;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:8px;color:var(--brand);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9,15 12,12 15,15"/></svg>
+        <span style="font-size:13px;font-weight:600;color:var(--brand);">Arrastra PDFs aquí o</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="upload-btn single" onclick="event.stopPropagation();document.getElementById('pdf-input-log').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          PDF 1 archivo
+        </button>
+        <button class="upload-btn bulk" onclick="event.stopPropagation();document.getElementById('pdf-input-bulk-log').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><polyline points="9,14 12,11 15,14"/></svg>
+          PDF Masivo
+        </button>
+        <button class="upload-btn excel" onclick="event.stopPropagation();document.getElementById('excel-input-log').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          Subir Excel
+        </button>
+        <button class="upload-btn" onclick="event.stopPropagation();downloadTemplate()" style="background:#065f46;color:#fff;border:none;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          📥 Plantilla
+        </button>
+      </div>
+    </div>
+    <input type="file" id="pdf-input-log" accept="application/pdf" onchange="handleFilesLog([this.files[0]])"/>
+    <input type="file" id="pdf-input-bulk-log" accept="application/pdf" multiple onchange="handleFilesLog(Array.from(this.files))"/>
+    <input type="file" id="excel-input-log" accept=".xlsx,.xls,.csv" onchange="handleExcelLog(this.files[0])"/>
+  </div>
+
+  <div id="progress-wrap-log">
+    <span id="progress-text-log">Procesando…</span>
+    <div id="progress-bar-wrap-log"><div id="progress-bar-log"></div></div>
+    <span id="progress-pct-log">0%</span>
+  </div>
+
+  <div id="bulk-panel-log" style="display:none;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:1rem;margin-bottom:1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <span style="font-size:13px;font-weight:600;">Carga masiva</span>
+      <span id="bulk-summary-log" style="font-size:12px;color:var(--text2);"></span>
+    </div>
+    <div id="bulk-list-log" style="display:flex;flex-direction:column;gap:6px;"></div>
+  </div>
+
+  <!-- TOOLBAR con buscador -->
+  <div class="ord-toolbar log-toolbar">
+    <h2>OF Logística registradas <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label-log"></span></h2>
+    <input id="log-search" type="text" placeholder="🔍 Buscar SKU, cliente, OF…" oninput="renderLogTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:200px;outline:none;"/>
+    <select id="log-filter-area" onchange="renderLogTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todas las áreas</option>
+    </select>
+    <select id="log-filter-cliente" onchange="renderLogTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los clientes</option>
+    </select>
+    <button class="filter-pill active" onclick="setFilterLog('todos',this)">Todos</button>
+    <button class="filter-pill" onclick="setFilterLog('Pendiente',this)">Pendiente</button>
+    <button class="filter-pill" onclick="setFilterLog('Parcial',this)">Parcial</button>
+    <button class="filter-pill" onclick="setFilterLog('Entregado',this)">Entregado</button>
+    <button class="btn-primary" onclick="exportCSVLog()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar CSV
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="ord-tbl">
+      <thead><tr>
+        <th>#</th>
+        <th onclick="sortLog('fecha')" style="cursor:pointer;">Fecha ↕</th>
+        <th onclick="sortLog('sku')" style="cursor:pointer;">SKU ↕</th>
+        <th onclick="sortLog('descripcion1')" style="cursor:pointer;">Descripción 1 ↕</th>
+        <th>Descripción 2</th>
+        <th onclick="sortLog('cantidad')" style="cursor:pointer;">Cantidad ↕</th>
+        <th>OC Cliente</th>
+        <th onclick="sortLog('of_mch')" style="cursor:pointer;">OF MCH ↕</th>
+        <th>OF Interna</th>
+        <th onclick="sortLog('cliente')" style="cursor:pointer;">Cliente ↕</th>
+        <th onclick="sortLog('area')" style="cursor:pointer;">Área ↕</th>
+        <th onclick="sortLog('estado')" style="cursor:pointer;">Estado ↕</th>
+        <th>Comentarios</th><th>🖨</th><th></th>
+      </tr></thead>
+      <tbody id="log-body">
+        <tr><td colspan="15"><div class="empty-state">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          <p>No hay registros de OF Logística</p><small>Sube un PDF para comenzar</small>
+        </div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════ DASHBOARD PAGE ══════════ -->
+<div id="page-dashboard" class="page">
+  <div id="filter-bar">
+    <label>Filtros</label>
+    <select id="f-cliente" class="fsel" onchange="applyFilters()"><option value="">Todos los clientes</option></select>
+    <select id="f-area"    class="fsel" onchange="applyFilters()"><option value="">Todas las áreas</option></select>
+    <select id="f-estado"  class="fsel" onchange="applyFilters()">
+      <option value="">Todos los estados</option>
+      <option>Pendiente</option><option>Parcial</option><option>Entregado</option>
+    </select>
+    <select id="f-año"  class="fsel" onchange="applyFilters()"><option value="">Todos los años</option></select>
+    <select id="f-mes"  class="fsel" onchange="applyFilters()"><option value="">Todos los meses</option></select>
+    <label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Desde</label>
+    <input type="date" id="f-desde" class="fsel" style="padding:4px 8px;" onchange="applyFilters()"/>
+    <label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Hasta</label>
+    <input type="date" id="f-hasta" class="fsel" style="padding:4px 8px;" onchange="applyFilters()"/>
+    <span id="rec-count"></span>
+    <button class="reset-btn" onclick="resetFilters()">✕ Limpiar</button>
+  </div>
+
+  <div class="kpi-row" style="grid-template-columns:repeat(7,1fr);">
+    <div class="kpi"><span class="klabel">Total Órdenes</span><span class="kval" id="kpi-total">—</span><span class="ksub">registros</span></div>
+    <div class="kpi"><span class="klabel">Cantidad Total</span><span class="kval" id="kpi-qty">—</span><span class="ksub">unidades</span></div>
+    <div class="kpi"><span class="klabel">Entregadas</span><span class="kval" id="kpi-ent">—</span><span class="ksub" id="kpi-ent-s"></span><div class="kbar"><div class="kbar-fill" id="kb-ent" style="background:var(--c0)"></div></div></div>
+    <div class="kpi"><span class="klabel">Pendientes</span><span class="kval" id="kpi-pend">—</span><span class="ksub" id="kpi-pend-s"></span><div class="kbar"><div class="kbar-fill" id="kb-pend" style="background:var(--c2)"></div></div></div>
+    <div class="kpi"><span class="klabel">⚠️ Vencidas</span><span class="kval" id="kpi-venc" style="color:#dc3545;">—</span><span class="ksub">sin entregar</span><div class="kbar"><div class="kbar-fill" id="kb-venc" style="background:#dc3545;"></div></div></div>
+    <div class="kpi"><span class="klabel">Cumplimiento</span><span class="kval" id="kpi-cum">—</span><span class="ksub">a tiempo</span><div class="kbar"><div class="kbar-fill" id="kb-cum" style="background:var(--c1)"></div></div></div>
+    <div class="kpi"><span class="klabel">Días Prom.</span><span class="kval" id="kpi-dias">—</span><span class="ksub">ingreso→término</span></div>
+  </div>
+
+  <div class="chart-grid" style="margin-bottom:10px;">
+    <div class="chart-card"><h3>Descripción 2 × Cantidad</h3><div class="ch-wrap"><canvas id="ch-desc2"></canvas></div></div>
+    <div class="chart-card"><h3>Descripción 1 × Cantidad</h3><div class="ch-wrap"><canvas id="ch-desc1"></canvas></div></div>
+  </div>
+  <div class="chart-grid" style="margin-bottom:10px;">
+    <div class="chart-card"><h3>Cantidad por Mes</h3><div class="ch-wrap"><canvas id="ch-mes"></canvas></div></div>
+    <div class="chart-card"><h3>OF por Mes</h3><div class="ch-wrap"><canvas id="ch-of-mes"></canvas></div></div>
+  </div>
+  <div class="chart-grid g3">
+    <div class="chart-card"><h3>Cumplimiento de Entrega</h3><div class="ch-wrap donut"><canvas id="ch-cum"></canvas></div></div>
+    <div class="chart-card"><h3>MSTEEL de Órdenes</h3><div class="ch-wrap donut"><canvas id="ch-estado"></canvas></div></div>
+    <div class="chart-card"><h3>Top Clientes × Cantidad</h3><div class="ch-wrap"><canvas id="ch-cliente"></canvas></div></div>
+  </div>
+  <div class="chart-card" style="margin-top:10px;">
+    <h3>📊 Tabla Pareto — Descripción × Cantidad</h3>
+    <div id="pareto-table-wrap" style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="background:#f8fafc;border-bottom:1px solid var(--border);">
+            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);">#</th>
+            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);">Descripción</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text2);">Cantidad</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text2);">% del Total</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text2);">% Acumulado</th>
+            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);">Barra</th>
+          </tr>
+        </thead>
+        <tbody id="pareto-body">
+          <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text2);">Cargando datos…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ DATA PAGE ══════════ -->
+<div id="page-data" class="page">
+  <div class="data-toolbar">
+    <h2>Datos completos</h2>
+    <input id="data-search" type="text" placeholder="Buscar en cualquier columna…" oninput="renderDataTable()"/>
+    <button class="btn-primary" onclick="exportCSVData()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar CSV
+    </button>
+  </div>
+  <div class="data-wrap">
+    <table class="dtbl">
+      <thead><tr>
+        <th onclick="sortData('fecha')">Fecha <span>↕</span></th>
+        <th onclick="sortData('sku')">SKU <span>↕</span></th>
+        <th onclick="sortData('descripcion1')">Desc 1 <span>↕</span></th>
+        <th onclick="sortData('descripcion2')">Desc 2 <span>↕</span></th>
+        <th onclick="sortData('cantidad')" style="text-align:right;">Cant. <span>↕</span></th>
+        <th onclick="sortData('oc_cliente')">OC Cliente <span>↕</span></th>
+        <th onclick="sortData('of_mch')">OF MCH <span>↕</span></th>
+        <th onclick="sortData('of_interna')">OF Interna <span>↕</span></th>
+        <th onclick="sortData('cliente')">Cliente <span>↕</span></th>
+        <th onclick="sortData('area')">Área <span>↕</span></th>
+        <th onclick="sortData('estado')">MSTEEL <span>↕</span></th>
+        <th onclick="sortData('fecha_entrega')">F. Entrega <span>↕</span></th>
+        <th onclick="sortData('fecha_ingreso')">F. Ingreso <span>↕</span></th>
+        <th onclick="sortData('fecha_termino')">F. Término <span>↕</span></th>
+        <th onclick="sortData('msteel')">Logística <span>↕</span></th>
+      </tr></thead>
+      <tbody id="data-body">
+        <tr><td colspan="15"><div class="empty-state"><p>Conecta Supabase para ver los datos</p></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div id="data-footer"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+<!-- ══════════ MARCA PAGE ══════════ -->
+<div id="page-marca" class="page">
+  <div class="marca-layout">
+
+    <!-- LEFT PANEL: busqueda + controles -->
+    <div class="marca-panel">
+      <div>
+        <h2>🏷 Generador de Marca</h2>
+        <p>Busca por área o SKU para generar la etiqueta de identificación.</p>
+      </div>
+
+      <div class="search-group">
+        <label>Filtrar por Área</label>
+        <select id="m-area" onchange="marcaFilterArea()">
+          <option value="">Todas las áreas</option>
+        </select>
+      </div>
+
+      <div class="search-group">
+        <label>Buscar SKU o Descripción</label>
+        <input id="m-search" type="text" placeholder="Ej: IMPU-1403 o MSF-MC…" oninput="marcaSearch()"/>
+      </div>
+
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Resultados</div>
+        <div class="results-list" id="marca-results">
+          <div class="marca-empty">Escribe para buscar órdenes</div>
+        </div>
+      </div>
+
+      <div class="search-group" id="m-qty-wrap" style="display:none;">
+        <label>Cantidad (editable)</label>
+        <div class="qty-edit">
+          <button onclick="marcaQtyStep(-1)" style="width:32px;height:32px;border:1px solid var(--border);border-radius:var(--r);background:#fff;font-size:18px;cursor:pointer;font-weight:700;">−</button>
+          <input type="number" id="m-qty" min="1" value="1" oninput="marcaRefreshPreview()"/>
+          <button onclick="marcaQtyStep(1)"  style="width:32px;height:32px;border:1px solid var(--border);border-radius:var(--r);background:#fff;font-size:18px;cursor:pointer;font-weight:700;">+</button>
+        </div>
+      </div>
+
+      <button class="print-btn" id="m-print-btn" disabled onclick="printMarca()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Imprimir Marca (Carta horizontal)
+      </button>
+    </div>
+
+    <!-- RIGHT PANEL: preview -->
+    <div class="marca-preview-wrap" id="marca-preview-wrap">
+      <div style="text-align:center;color:#94a3b8;">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom:12px;opacity:.4"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+        <p style="font-size:14px;font-weight:500;">Selecciona una orden para previsualizar la marca</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════ MOVIMIENTOS PAGE (solo ADMIN) ══════════ -->
+<div id="page-movimientos" class="page">
+  <div class="ord-toolbar">
+    <h2>🛡 Movimientos <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label-mov"></span></h2>
+    <input id="mov-search" type="text" placeholder="🔍 Buscar usuario, módulo, acción…" oninput="renderMovimientosTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:240px;outline:none;"/>
+    <select id="mov-filter-usuario" onchange="renderMovimientosTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los usuarios</option>
+    </select>
+    <select id="mov-filter-modulo" onchange="renderMovimientosTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los módulos</option>
+    </select>
+    <button class="btn-primary" onclick="loadMovimientos()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Actualizar
+    </button>
+  </div>
+  <div class="table-wrap">
+    <table class="ord-tbl">
+      <thead><tr>
+        <th>Fecha / Hora</th><th>Usuario</th><th>Módulo</th><th>Acción</th><th>Detalle</th>
+      </tr></thead>
+      <tbody id="mov-body">
+        <tr><td colspan="5"><div class="empty-state">
+          <p>Sin movimientos registrados todavía</p>
+        </div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --brand:#0F6E56; --brand-mid:#1D9E75; --brand-lt:#E1F5EE;
+  --surface:#fff; --bg:#f0f4f8; --border:#e2e8f0;
+  --text:#1a202c; --text2:#64748b;
+  --r:8px; --rl:12px;
+  --c0:#1D9E75;--c1:#3B82F6;--c2:#F59E0B;--c3:#EF4444;--c4:#8B5CF6;--c5:#06B6D4;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background-color .4s;}
+
+/* ── PAGES ── */
+.page{display:none;padding:1.25rem 1.5rem;}
+.page.active{display:block;}
+
+header{background:var(--brand);height:76px;display:flex;align-items:center;padding:0 1.5rem;gap:14px;position:sticky;top:0;z-index:200;transition:background .3s;}
+.logo-slot{width:52px;height:52px;border-radius:10px;overflow:hidden;cursor:pointer;flex-shrink:0;background:rgba(255,255,255,.15);border:2px dashed rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;transition:.2s;position:relative;}
+.logo-slot:hover{border-color:#fff;background:rgba(255,255,255,.25);}
+.logo-slot img{width:100%;height:100%;object-fit:contain;display:none;}
+.logo-slot svg{pointer-events:none;}
+.logo-slot input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+header h1{font-size:16px;font-weight:700;color:#fff;letter-spacing:.2px;white-space:nowrap;}
+header .hbadge{background:rgba(255,255,255,.18);color:#fff;font-size:10px;padding:2px 8px;border-radius:20px;white-space:nowrap;}
+
+/* centered nav */
+.nav-tabs{display:flex;gap:3px;position:absolute;left:50%;transform:translateX(-50%);}
+.nav-tab{color:rgba(255,255,255,.65);font-size:12px;font-weight:600;padding:7px 20px;border-radius:22px;cursor:pointer;border:none;background:none;transition:.15s;letter-spacing:.3px;white-space:nowrap;}
+.nav-tab:hover{color:#fff;background:rgba(255,255,255,.15);}
+.nav-tab.active{color:var(--brand);background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+
+/* right side header actions */
+.header-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.hdr-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;transition:.15s;white-space:nowrap;}
+.hdr-btn:hover{background:rgba(255,255,255,.25);}
+
+/* ── BG EDITOR PANEL ── */
+#bg-panel{display:none;position:fixed;top:70px;right:16px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:16px;width:260px;z-index:10000;box-shadow:0 8px 32px rgba(0,0,0,.15);}
+#bg-panel h4{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+#bg-panel h4 button{background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;line-height:1;}
+.bg-section{margin-bottom:12px;}
+.bg-section label{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:6px;}
+.bg-colors{display:flex;gap:6px;flex-wrap:wrap;}
+.bg-swatch{width:28px;height:28px;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:.15s;flex-shrink:0;}
+.bg-swatch:hover,.bg-swatch.active{border-color:var(--brand);transform:scale(1.1);}
+.bg-color-input{width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:12px;margin-top:6px;}
+.bg-img-btn{width:100%;border:2px dashed var(--border);border-radius:8px;padding:10px;text-align:center;cursor:pointer;font-size:12px;color:var(--text2);transition:.15s;position:relative;overflow:hidden;}
+.bg-img-btn:hover{border-color:var(--brand-mid);color:var(--brand);background:var(--brand-lt);}
+.bg-img-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.bg-reset{width:100%;background:#f1f5f9;border:none;border-radius:6px;padding:7px;font-size:12px;cursor:pointer;font-weight:600;color:var(--text2);margin-top:4px;}
+.bg-reset:hover{background:#e2e8f0;}
+
+/* ── CONFIG BAR ── */
+#config-bar{display:none;}
+#config-bar strong{font-weight:700;}
+#config-bar input{padding:4px 8px;border:1px solid #ffc107;border-radius:5px;font-size:12px;background:#fffbf0;}
+#sb-url{width:260px;} #sb-key{width:340px;}
+#config-bar button{background:#856404;color:#fff;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;}
+#config-bar button:hover{background:#6d520a;}
+#conn-status{margin-left:auto;font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600;}
+#conn-status.ok{background:#d1fae5;color:#065f46;}
+#conn-status.err{background:#fee2e2;color:#991b1b;}
+#conn-status.pending{background:#e0e7ff;color:#3730a3;}
+
+/* ── PAGES ── */
+.page{display:none;padding:1.25rem 1.5rem;}
+.page.active{display:block;}
+
+/* ════════════════════════════════
+   ÓRDENES PAGE
+════════════════════════════════ */
+#upload-zone,#upload-zone-log{border:2px dashed var(--brand-mid);border-radius:var(--rl);background:var(--brand-lt);padding:.9rem 1.5rem;text-align:center;transition:.2s;margin-bottom:1rem;position:relative;}
+#upload-zone:hover,#upload-zone-log:hover{background:#c7eedd;border-color:var(--brand);}
+#upload-zone.dragover,#upload-zone-log.dragover{background:#b0e7d2;border-color:var(--brand);}
+#pdf-input,#pdf-input-bulk,#excel-input,#pdf-input-log,#pdf-input-bulk-log,#excel-input-log{display:none;}
+.upload-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:.15s;}
+.upload-btn.single{background:#fff;color:var(--brand);border:1.5px solid var(--brand-mid);}
+.upload-btn.single:hover{background:var(--brand-lt);}
+.upload-btn.bulk{background:var(--brand);color:#fff;}
+.upload-btn.bulk:hover{background:#0a5a45;}
+.upload-btn.excel{background:#1D6F42;color:#fff;}
+.upload-btn.excel:hover{background:#155232;}
+
+#progress-wrap,#progress-wrap-log{display:none;background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 1rem;margin-bottom:1rem;font-size:12px;color:var(--text2);align-items:center;gap:10px;}
+#progress-wrap.show,#progress-wrap-log.show{display:flex;}
+#progress-bar-wrap,#progress-bar-wrap-log{flex:1;height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;}
+#progress-bar,#progress-bar-log{height:100%;background:var(--brand-mid);border-radius:3px;width:0%;transition:width .3s;}
+
+.bulk-item{display:flex;align-items:center;gap:10px;font-size:12px;padding:7px 10px;border-radius:var(--r);background:#f8fafc;border:1px solid var(--border);}
+.bulk-item .fname{flex:1;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fstatus{font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap;}
+.fstatus.waiting{background:#f1f5f9;color:var(--text2);}
+.fstatus.running{background:#e0e7ff;color:#3730a3;}
+.fstatus.done{background:#d1fae5;color:#065f46;}
+.fstatus.err{background:#fee2e2;color:#991b1b;}
+.bulk-progress{flex:1;height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;}
+.bulk-progress-bar{height:100%;background:var(--brand-mid);width:0%;transition:width .3s;}
+.frows{font-size:11px;color:var(--text2);}
+
+.ord-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:.75rem;flex-wrap:wrap;}
+.ord-toolbar h2{font-size:15px;font-weight:600;flex:1;}
+.filter-pill{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--border);cursor:pointer;background:#fff;color:var(--text2);transition:.15s;}
+.filter-pill.active{background:var(--brand);color:#fff;border-color:var(--brand);}
+.btn-primary{background:var(--brand);color:#fff;border:none;border-radius:var(--r);padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.btn-primary:hover{background:#0a5a45;}
+
+/* Orders table */
+.table-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--rl);overflow-x:auto;width:100%;}
+table.ord-tbl{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto;}
+table.ord-tbl thead tr{background:#f8fafc;border-bottom:1px solid var(--border);}
+table.ord-tbl th{padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);white-space:nowrap;}
+table.ord-tbl tbody tr{border-bottom:1px solid #f1f5f9;transition:background .1s;}
+table.ord-tbl tbody tr:hover{background:#f8fafc;}
+table.ord-tbl td{padding:7px 10px;vertical-align:middle;}
+.estado-select{border:none;border-radius:20px;padding:3px 22px 3px 8px;font-size:11px;font-weight:600;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 5px center;}
+.est-Pendiente{background:#fff3cd;color:#856404;}
+.est-Parcial{background:#cff4fc;color:#0c5460;}
+.est-Entregado{background:#d1fae5;color:#065f46;}
+.fi{border:1px solid var(--border);border-radius:var(--r);padding:4px 6px;font-size:11px;color:var(--text);background:transparent;cursor:pointer;width:116px;}
+.fi:focus{outline:2px solid var(--brand-mid);}
+.fi.cmt{width:120px;font-style:italic;}
+.fi.cmt:not(:placeholder-shown){font-style:normal;}
+.btn-del{background:none;border:none;cursor:pointer;color:#dc3545;padding:3px 5px;border-radius:4px;font-size:15px;line-height:1;}
+.btn-del:hover{background:#fee2e2;}
+.fi.vencida-date{border-color:#dc3545;color:#dc3545;}
+.btn-print-of{background:none;border:1px solid var(--border);cursor:pointer;color:var(--brand);padding:3px 7px;border-radius:4px;font-size:11px;font-weight:600;transition:.15s;white-space:nowrap;}
+.btn-print-of:hover{background:var(--brand-lt);border-color:var(--brand-mid);}
+.empty-state{text-align:center;padding:3rem;color:var(--text2);}
+.empty-state svg{opacity:.35;margin-bottom:12px;}
+.empty-state p{font-size:14px;} .empty-state small{font-size:12px;}
+
+/* ════════════════════════════════
+   DASHBOARD PAGE
+════════════════════════════════ */
+#filter-bar{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+#filter-bar label{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;}
+.fsel{border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--text);background:#fff;cursor:pointer;}
+.fsel:focus{outline:2px solid var(--brand-mid);}
+#rec-count{font-size:11px;color:var(--text2);}
+.reset-btn{margin-left:auto;background:var(--brand);color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;}
+.reset-btn:hover{background:#0a5a45;}
+
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:1rem;}
+.kpi{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;display:flex;flex-direction:column;gap:3px;}
+.kpi .klabel{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;}
+.kpi .kval{font-size:24px;font-weight:700;color:var(--text);line-height:1.1;}
+.kpi .ksub{font-size:11px;color:var(--text2);}
+.kbar{height:3px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden;}
+.kbar-fill{height:100%;border-radius:2px;transition:width .5s;}
+
+.chart-grid{display:grid;gap:10px;grid-template-columns:1fr 1fr;margin-bottom:10px;}
+.chart-grid.g3{grid-template-columns:1fr 1fr 1fr;}
+.chart-card{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:14px;display:flex;flex-direction:column;gap:8px;}
+.chart-card h3{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;}
+.ch-wrap{position:relative;min-height:220px;}
+.ch-wrap canvas{width:100%!important;}
+.ch-wrap.donut{min-height:200px;display:flex;align-items:center;justify-content:center;}
+
+/* ════════════════════════════════
+   DATA PAGE
+════════════════════════════════ */
+.data-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+.data-toolbar h2{font-size:15px;font-weight:600;flex:1;}
+#data-search{width:240px;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;}
+#data-search:focus{outline:2px solid var(--brand-mid);}
+.data-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--rl);overflow:auto;max-height:calc(100vh - 220px);}
+table.dtbl{width:100%;border-collapse:collapse;font-size:12px;}
+table.dtbl thead{position:sticky;top:0;z-index:2;}
+table.dtbl thead tr{background:#f8fafc;border-bottom:1px solid var(--border);}
+table.dtbl th{padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);white-space:nowrap;cursor:pointer;user-select:none;}
+table.dtbl th:hover{color:var(--brand);}
+table.dtbl th.sorted{color:var(--brand);}
+table.dtbl tbody tr{border-bottom:1px solid #f1f5f9;}
+table.dtbl tbody tr:hover{background:#f8fafc;}
+table.dtbl td{padding:7px 10px;vertical-align:middle;}
+.dbadge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;}
+.dbadge.Pendiente{background:#fff3cd;color:#856404;}
+.dbadge.Parcial{background:#cff4fc;color:#0c5460;}
+.dbadge.Entregado{background:#d1fae5;color:#065f46;}
+#data-footer{font-size:11px;color:var(--text2);margin-top:5px;text-align:right;}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:20px;right:20px;background:#1a202c;color:#fff;padding:10px 16px;border-radius:var(--r);font-size:12px;font-weight:500;display:none;z-index:9999;max-width:320px;box-shadow:0 4px 20px rgba(0,0,0,.2);}
+#toast.show{display:block;animation:fin .2s;}
+#toast.success{background:var(--brand);}
+#toast.error{background:#dc3545;}
+@keyframes fin{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+/* ════════════════════════════════
+   MARCA PAGE
+════════════════════════════════ */
+.marca-layout{display:grid;grid-template-columns:340px 1fr;gap:1.5rem;align-items:start;}
+.marca-panel{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:1.5rem;display:flex;flex-direction:column;gap:1rem;}
+.marca-panel h2{font-size:14px;font-weight:700;color:var(--text);margin-bottom:.25rem;}
+.marca-panel p{font-size:12px;color:var(--text2);}
+.search-group{display:flex;flex-direction:column;gap:6px;}
+.search-group label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
+.search-group select,.search-group input{width:100%;border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;font-size:13px;color:var(--text);background:#fff;}
+.search-group select:focus,.search-group input:focus{outline:2px solid var(--brand-mid);}
+.results-list{display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;}
+.result-item{padding:10px 12px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:3px;}
+.result-item:hover{border-color:var(--brand-mid);background:var(--brand-lt);}
+.result-item.selected{border-color:var(--brand);background:var(--brand-lt);}
+.result-item .ri-sku{font-size:11px;font-weight:700;color:var(--brand);font-family:monospace;}
+.result-item .ri-desc{font-size:12px;font-weight:500;color:var(--text);}
+.result-item .ri-sub{font-size:11px;color:var(--text2);}
+.marca-empty{text-align:center;padding:2rem;color:var(--text2);font-size:13px;}
+.print-btn{width:100%;background:var(--brand);color:#fff;border:none;border-radius:var(--r);padding:10px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s;}
+.print-btn:hover{background:#0a5a45;}
+.print-btn:disabled{background:#94a3b8;cursor:not-allowed;}
+.qty-edit{display:flex;align-items:center;gap:8px;}
+.qty-edit input{width:80px;border:1px solid var(--border);border-radius:var(--r);padding:6px 10px;font-size:14px;font-weight:700;text-align:center;}
+
+/* ── PREVIEW (pantalla) ── */
+.marca-preview-wrap{background:#e2e8f0;border-radius:var(--rl);padding:1.5rem;display:flex;align-items:center;justify-content:center;min-height:420px;}
+.marca-card{background:#fff;width:100%;max-width:780px;border-radius:12px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.15);font-family:'Inter',system-ui,sans-serif;}
+.marca-top{background:linear-gradient(135deg,#0F6E56 0%,#1D9E75 60%,#5DCAA5 100%);padding:24px 32px 20px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;}
+.marca-top-left{display:flex;flex-direction:column;gap:6px;}
+.marca-logo-row{display:flex;align-items:center;gap:10px;}
+.marca-logo-box{width:36px;height:36px;background:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.marca-brand{color:#fff;font-size:22px;font-weight:800;letter-spacing:.5px;}
+.marca-subbrand{color:rgba(255,255,255,.75);font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;}
+.marca-title{color:#fff;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.9;margin-top:10px;}
+.marca-top-qr{background:#fff;border-radius:8px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:5px;}
+.marca-top-qr canvas{width:100px!important;height:100px!important;}
+.marca-top-qr span{font-size:10px;font-weight:700;color:var(--brand);letter-spacing:.5px;text-align:center;}
+.marca-body{padding:20px 32px 24px;display:grid;grid-template-columns:1fr 1fr;gap:0;flex:1;}
+.marca-field{padding:18px 0;border-bottom:1px solid #f1f5f9;display:flex;flex-direction:column;gap:6px;}
+.marca-field:nth-child(odd){padding-right:24px;border-right:1px solid #f1f5f9;}
+.marca-field:nth-child(even){padding-left:24px;}
+.marca-field:nth-last-child(-n+2){border-bottom:none;}
+.mf-label{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px;}
+.mf-value{font-size:24px;font-weight:700;color:#1a202c;line-height:1.2;}
+.mf-value.big{font-size:36px;color:var(--brand);}
+.mf-value.mono{font-family:'Courier New',monospace;font-size:22px;}
+.mf-of-interna{font-size:13px;color:var(--text2);font-weight:500;margin-top:2px;}
+.marca-footer{background:#f8fafc;border-top:1px solid #e2e8f0;padding:10px 32px;display:flex;align-items:center;justify-content:space-between;}
+.marca-footer-left{font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:.5px;}
+.marca-footer-right{display:flex;gap:6px;align-items:center;}
+.dot{width:6px;height:6px;border-radius:50%;}
+
+/* ── PRINT ── (manejado por printMarca() en ventana limpia) */
+
+@media(max-width:900px){.marca-layout{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<!-- ══════════ LOGIN OVERLAY ══════════ -->
+<div id="login-overlay" style="display:flex;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0F6E56,#1D9E75);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:2.2rem 2rem;width:340px;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="text-align:center;margin-bottom:1.4rem;">
+      <div style="font-size:13px;font-weight:800;color:#0F6E56;letter-spacing:1px;text-transform:uppercase;">MULTOTEC STEEL</div>
+      <div style="font-size:18px;font-weight:700;color:#1a202c;margin-top:4px;">Iniciar sesión</div>
+    </div>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Usuario</label>
+    <input id="login-usuario" type="text" autocomplete="username" placeholder="Ej: LBUSTOS"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:12px;outline:none;text-transform:uppercase;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Contraseña</label>
+    <input id="login-password" type="password" autocomplete="current-password" placeholder="••••••••"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:6px;outline:none;"
+      onkeydown="if(event.key==='Enter')intentarLogin()"/>
+    <div id="login-error" style="color:#dc3545;font-size:12px;font-weight:600;min-height:16px;margin-bottom:10px;"></div>
+    <button onclick="intentarLogin()" style="width:100%;background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;">Ingresar</button>
+    <div style="text-align:center;margin-top:14px;">
+      <button onclick="toggleBgPanel()" style="background:none;border:none;color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer;">🎨 Personalizar</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header id="main-header">
+  <!-- Logo editable -->
+  <div class="logo-slot" title="Haz clic para subir tu logo">
+    <svg id="logo-default" width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <rect x="2" y="8" width="5" height="10" rx="1" fill="#fff"/>
+      <rect x="7.5" y="5" width="5" height="13" rx="1" fill="rgba(255,255,255,.7)"/>
+      <rect x="13" y="2" width="5" height="16" rx="1" fill="rgba(255,255,255,.4)"/>
+    </svg>
+    <img id="logo-img" alt="Logo"/>
+    <input type="file" accept="image/*" onchange="uploadLogo(this)"/>
+  </div>
+
+  <h1>Órdenes de Fabricación</h1>
+  <span class="hbadge">MULTOTEC STEEL</span>
+
+  <!-- Tabs centrados -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('ordenes',this)">📋 Órdenes <span id="alert-badge" style="display:none;background:#dc3545;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:3px;"></span></button>
+    <button class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</button>
+    <button class="nav-tab" onclick="showPage('data',this)">🗄 Data</button>
+    <button class="nav-tab" onclick="showPage('pletinas',this)">🔩 Pletinas</button>
+    <button class="nav-tab" onclick="showPage('logistica',this)">🚚 OF Logística</button>
+    <button class="nav-tab" onclick="showPage('marca',this)">🏷 Marca</button>
+    <button class="nav-tab" id="nav-movimientos" style="display:none;" onclick="showPage('movimientos',this)">🛡 Movimientos</button>
+  </div>
+
+  <!-- Acciones derecha -->
+  <div class="header-right">
+    <span id="user-badge" style="font-size:11px;font-weight:600;color:rgba(255,255,255,.85);margin-right:6px;"></span>
+    <button class="hdr-btn" onclick="cerrarSesion()" title="Cerrar sesión">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Salir
+    </button>
+    <button class="hdr-btn" onclick="toggleBgPanel()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Personalizar
+    </button>
+  </div>
+</header>
+
+<!-- BG EDITOR PANEL -->
+<div id="bg-panel">
+  <h4>🎨 Personalizar <button onclick="toggleBgPanel()">✕</button></h4>
+
+  <div class="bg-section">
+    <label>🎨 Color del Header</label>
+    <div class="bg-colors">
+      <div class="bg-swatch" style="background:#0F6E56;" onclick="setHeaderColor('#0F6E56')" title="Verde Multotec"></div>
+      <div class="bg-swatch" style="background:#1e293b;" onclick="setHeaderColor('#1e293b')" title="Azul oscuro"></div>
+      <div class="bg-swatch" style="background:#1d4ed8;" onclick="setHeaderColor('#1d4ed8')" title="Azul"></div>
+      <div class="bg-swatch" style="background:#7c3aed;" onclick="setHeaderColor('#7c3aed')" title="Violeta"></div>
+      <div class="bg-swatch" style="background:#b91c1c;" onclick="setHeaderColor('#b91c1c')" title="Rojo"></div>
+      <div class="bg-swatch" style="background:#92400e;" onclick="setHeaderColor('#92400e')" title="Café"></div>
+      <div class="bg-swatch" style="background:#000000;" onclick="setHeaderColor('#000000')" title="Negro"></div>
+      <div class="bg-swatch" style="background:#374151;" onclick="setHeaderColor('#374151')" title="Gris"></div>
+    </div>
+    <input type="color" id="hdr-custom-color" class="bg-color-input" value="#0F6E56" oninput="setHeaderColor(this.value)" style="height:36px;padding:2px 4px;cursor:pointer;margin-top:6px;"/>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:8px 0;"/>
+
+  <div class="bg-section">
+    <label>🖼 Fondo de la página</label>
+    <div class="bg-colors">
+      <div class="bg-swatch" style="background:#f0f4f8;" onclick="setBgColor('#f0f4f8')"></div>
+      <div class="bg-swatch" style="background:#E1F5EE;" onclick="setBgColor('#E1F5EE')"></div>
+      <div class="bg-swatch" style="background:#1e293b;" onclick="setBgColor('#1e293b')"></div>
+      <div class="bg-swatch" style="background:#f8fafc;" onclick="setBgColor('#f8fafc')"></div>
+      <div class="bg-swatch" style="background:#fff7ed;" onclick="setBgColor('#fff7ed')"></div>
+      <div class="bg-swatch" style="background:#eff6ff;" onclick="setBgColor('#eff6ff')"></div>
+      <div class="bg-swatch" style="background:#fdf4ff;" onclick="setBgColor('#fdf4ff')"></div>
+    </div>
+    <input type="color" id="bg-custom-color" class="bg-color-input" value="#f0f4f8" oninput="setBgColor(this.value)" style="height:36px;padding:2px 4px;cursor:pointer;margin-top:6px;"/>
+  </div>
+  <div class="bg-section">
+    <label>📷 Imagen de fondo</label>
+    <div class="bg-img-btn">
+      📁 Subir imagen de fondo
+      <input type="file" accept="image/*" onchange="setBgImage(this)"/>
+    </div>
+  </div>
+  <button class="bg-reset" onclick="resetBg()">↩ Restablecer todo</button>
+</div>
+
+<!-- CONFIG BAR -->
+<div id="config-bar">
+  <strong>⚙ Supabase:</strong>
+  <input id="sb-url" type="text" placeholder="https://xxxx.supabase.co"/>
+  <input id="sb-key" type="text" placeholder="Anon Key"/>
+  <button onclick="initSupabase()">Conectar</button>
+  <button onclick="loadOrders()" style="background:#065f46;">↻ Recargar</button>
+  <span id="conn-status" class="pending">Sin conectar</span>
+</div>
+
+<!-- ══════════ ÓRDENES PAGE ══════════ -->
+<div id="page-ordenes" class="page active">
+
+  <!-- UPLOAD ZONE — compacta -->
+  <div id="upload-zone"
+       ondragover="event.preventDefault();this.classList.add('dragover')"
+       ondragleave="this.classList.remove('dragover')"
+       ondrop="handleDrop(event)">
+    <div style="display:flex;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:8px;color:var(--brand);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9,15 12,12 15,15"/></svg>
+        <span style="font-size:13px;font-weight:600;color:var(--brand);">Arrastra PDFs aquí o</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="upload-btn single" onclick="event.stopPropagation();document.getElementById('pdf-input').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          PDF 1 archivo
+        </button>
+        <button class="upload-btn bulk" onclick="event.stopPropagation();document.getElementById('pdf-input-bulk').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><polyline points="9,14 12,11 15,14"/></svg>
+          PDF Masivo
+        </button>
+        <button class="upload-btn excel" onclick="event.stopPropagation();document.getElementById('excel-input').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          Subir Excel
+        </button>
+        <button class="upload-btn" onclick="event.stopPropagation();downloadTemplate()" style="background:#065f46;color:#fff;border:none;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          📥 Plantilla
+        </button>
+      </div>
+    </div>
+    <input type="file" id="pdf-input" accept="application/pdf" onchange="handleFiles([this.files[0]])"/>
+    <input type="file" id="pdf-input-bulk" accept="application/pdf" multiple onchange="handleFiles(Array.from(this.files))"/>
+    <input type="file" id="excel-input" accept=".xlsx,.xls,.csv" onchange="handleExcel(this.files[0])"/>
+  </div>
+
+  <div id="progress-wrap">
+    <span id="progress-text">Procesando…</span>
+    <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+    <span id="progress-pct">0%</span>
+  </div>
+
+  <div id="bulk-panel" style="display:none;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:1rem;margin-bottom:1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <span style="font-size:13px;font-weight:600;">Carga masiva</span>
+      <span id="bulk-summary" style="font-size:12px;color:var(--text2);"></span>
+    </div>
+    <div id="bulk-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+  </div>
+
+  <!-- TOOLBAR con buscador -->
+  <div class="ord-toolbar">
+    <h2>Órdenes registradas <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label"></span></h2>
+    <input id="ord-search" type="text" placeholder="🔍 Buscar SKU, cliente, OF…" oninput="renderOrdTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:200px;outline:none;"/>
+    <select id="ord-filter-area" onchange="renderOrdTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todas las áreas</option>
+    </select>
+    <select id="ord-filter-cliente" onchange="renderOrdTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los clientes</option>
+    </select>
+    <button class="filter-pill active" onclick="setFilter('todos',this)">Todos</button>
+    <button class="filter-pill" onclick="setFilter('Pendiente',this)">Pendiente</button>
+    <button class="filter-pill" onclick="setFilter('Parcial',this)">Parcial</button>
+    <button class="filter-pill" onclick="setFilter('Entregado',this)">Entregado</button>
+    <button class="btn-primary" onclick="exportCSVOrd()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar CSV
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="ord-tbl">
+      <thead><tr>
+        <th>#</th>
+        <th onclick="sortOrd('fecha')" style="cursor:pointer;">Fecha ↕</th>
+        <th onclick="sortOrd('sku')" style="cursor:pointer;">SKU ↕</th>
+        <th onclick="sortOrd('descripcion1')" style="cursor:pointer;">Descripción 1 ↕</th>
+        <th>Descripción 2</th>
+        <th onclick="sortOrd('cantidad')" style="cursor:pointer;">Cantidad ↕</th>
+        <th>OC Cliente</th>
+        <th onclick="sortOrd('of_mch')" style="cursor:pointer;">OF MCH ↕</th>
+        <th>OF Interna</th>
+        <th onclick="sortOrd('cliente')" style="cursor:pointer;">Cliente ↕</th>
+        <th onclick="sortOrd('area')" style="cursor:pointer;">Área ↕</th>
+        <th onclick="sortOrd('estado')" style="cursor:pointer;">MSTEEL ↕</th>
+        <th onclick="sortOrd('fecha_entrega')" style="cursor:pointer;">F. Entrega ↕</th>
+        <th>F. Ingreso</th><th>F. Término</th><th onclick="sortOrd('msteel')" style="cursor:pointer;">Logística ↕</th><th>🖨</th><th></th>
+      </tr></thead>
+      <tbody id="ord-body">
+        <tr><td colspan="18"><div class="empty-state">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          <p>No hay órdenes registradas</p><small>Sube un PDF para comenzar</small>
+        </div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════ PLETINAS PAGE ══════════ -->
+<div id="page-pletinas" class="page">
+
+  <!-- TOOLBAR -->
+  <div class="ord-toolbar" style="flex-wrap:wrap;gap:8px;">
+    <h2>🔩 Pletinas <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label-plet"></span></h2>
+    <input id="plet-search" type="text" placeholder="🔍 Buscar SKU, nombre, descripción…" oninput="renderPletinasTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:220px;outline:none;"/>
+    <select id="plet-filter-tipo" onchange="renderPletinasTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los tipos</option>
+    </select>
+    <button class="btn-primary" onclick="abrirModalPletina()" style="background:#0F6E56;">
+      ＋ Nueva Pletina
+    </button>
+    <button class="btn-primary" onclick="mostrarNecesidades()" style="background:#7c3aed;">
+      📊 Pletinas necesarias
+    </button>
+    <button class="btn-primary" onclick="exportCSVPletinas()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar CSV
+    </button>
+  </div>
+
+  <!-- Panel necesidades de pletinas (se muestra al pulsar el botón) -->
+  <div id="plet-necesidades" style="display:none;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:1rem 1.2rem;margin-bottom:1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <strong style="font-size:13px;">📊 Pletinas requeridas por órdenes Pendientes/Parciales</strong>
+      <button onclick="document.getElementById('plet-necesidades').style.display='none'" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:16px;">✕</button>
+    </div>
+    <div id="plet-nec-body"></div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="ord-tbl">
+      <thead><tr>
+        <th>SKU</th><th>Tipo (Área)</th><th>Nombre</th>
+        <th onclick="sortPlet('descripcion1')" style="cursor:pointer;">Descripción 1 ↕</th>
+        <th>Descripción 2</th>
+        <th onclick="sortPlet('stock')" style="cursor:pointer;">Stock ↕</th>
+        <th>Pletinas en OF pendientes</th>
+        <th>Acciones</th>
+      </tr></thead>
+      <tbody id="plet-body">
+        <tr><td colspan="8"><div class="empty-state">
+          <p>No hay pletinas registradas</p><small>Haz clic en "Nueva Pletina" para agregar</small>
+        </div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal Pletina -->
+<div id="modal-pletina" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;padding:1.8rem;width:420px;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.25);">
+    <h3 style="margin:0 0 1rem;font-size:16px;color:#1a202c;" id="modal-plet-title">Nueva Pletina</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">SKU</label>
+        <input id="plet-sku" type="text" placeholder="80001"
+          style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;box-sizing:border-box;"/>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Tipo (Área)</label>
+        <input id="plet-tipo" type="text" placeholder="RM"
+          style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;box-sizing:border-box;"/>
+      </div>
+    </div>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Nombre</label>
+    <input id="plet-nombre" type="text" placeholder="Pletina"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px;outline:none;box-sizing:border-box;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Descripción 1</label>
+    <input id="plet-desc1" type="text" placeholder="PLETINA-ACERO-20x3/6mt/"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px;outline:none;box-sizing:border-box;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Descripción 2</label>
+    <input id="plet-desc2" type="text" placeholder="ACERO-CARBONO-//Unidad"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:10px;outline:none;box-sizing:border-box;"/>
+    <label style="font-size:11px;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Stock (unidades)</label>
+    <input id="plet-stock" type="number" min="0" value="0"
+      style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;margin-bottom:6px;outline:none;box-sizing:border-box;"/>
+    <div id="modal-plet-error" style="color:#dc3545;font-size:12px;font-weight:600;min-height:16px;margin-bottom:10px;"></div>
+    <input type="hidden" id="plet-edit-id"/>
+    <div style="display:flex;gap:8px;">
+      <button onclick="cerrarModalPletina()" style="flex:1;background:none;border:1px solid #e2e8f0;border-radius:8px;padding:9px;font-size:13px;cursor:pointer;color:#64748b;">Cancelar</button>
+      <button onclick="guardarPletina()" style="flex:1;background:#0F6E56;color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ OF LOGÍSTICA PAGE ══════════ -->
+<div id="page-logistica" class="page">
+
+  <!-- UPLOAD ZONE — compacta -->
+  <div id="upload-zone-log"
+       ondragover="event.preventDefault();this.classList.add('dragover')"
+       ondragleave="this.classList.remove('dragover')"
+       ondrop="handleDropLog(event)">
+    <div style="display:flex;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:8px;color:var(--brand);">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9,15 12,12 15,15"/></svg>
+        <span style="font-size:13px;font-weight:600;color:var(--brand);">Arrastra PDFs aquí o</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="upload-btn single" onclick="event.stopPropagation();document.getElementById('pdf-input-log').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          PDF 1 archivo
+        </button>
+        <button class="upload-btn bulk" onclick="event.stopPropagation();document.getElementById('pdf-input-bulk-log').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><polyline points="9,14 12,11 15,14"/></svg>
+          PDF Masivo
+        </button>
+        <button class="upload-btn excel" onclick="event.stopPropagation();document.getElementById('excel-input-log').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          Subir Excel
+        </button>
+        <button class="upload-btn" onclick="event.stopPropagation();downloadTemplate()" style="background:#065f46;color:#fff;border:none;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          📥 Plantilla
+        </button>
+      </div>
+    </div>
+    <input type="file" id="pdf-input-log" accept="application/pdf" onchange="handleFilesLog([this.files[0]])"/>
+    <input type="file" id="pdf-input-bulk-log" accept="application/pdf" multiple onchange="handleFilesLog(Array.from(this.files))"/>
+    <input type="file" id="excel-input-log" accept=".xlsx,.xls,.csv" onchange="handleExcelLog(this.files[0])"/>
+  </div>
+
+  <div id="progress-wrap-log">
+    <span id="progress-text-log">Procesando…</span>
+    <div id="progress-bar-wrap-log"><div id="progress-bar-log"></div></div>
+    <span id="progress-pct-log">0%</span>
+  </div>
+
+  <div id="bulk-panel-log" style="display:none;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:1rem;margin-bottom:1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <span style="font-size:13px;font-weight:600;">Carga masiva</span>
+      <span id="bulk-summary-log" style="font-size:12px;color:var(--text2);"></span>
+    </div>
+    <div id="bulk-list-log" style="display:flex;flex-direction:column;gap:6px;"></div>
+  </div>
+
+  <!-- TOOLBAR con buscador -->
+  <div class="ord-toolbar log-toolbar">
+    <h2>OF Logística registradas <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label-log"></span></h2>
+    <input id="log-search" type="text" placeholder="🔍 Buscar SKU, cliente, OF…" oninput="renderLogTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:200px;outline:none;"/>
+    <select id="log-filter-area" onchange="renderLogTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todas las áreas</option>
+    </select>
+    <select id="log-filter-cliente" onchange="renderLogTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los clientes</option>
+    </select>
+    <button class="filter-pill active" onclick="setFilterLog('todos',this)">Todos</button>
+    <button class="filter-pill" onclick="setFilterLog('Pendiente',this)">Pendiente</button>
+    <button class="filter-pill" onclick="setFilterLog('Parcial',this)">Parcial</button>
+    <button class="filter-pill" onclick="setFilterLog('Entregado',this)">Entregado</button>
+    <button class="btn-primary" onclick="exportCSVLog()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar CSV
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="ord-tbl">
+      <thead><tr>
+        <th>#</th>
+        <th onclick="sortLog('fecha')" style="cursor:pointer;">Fecha ↕</th>
+        <th onclick="sortLog('sku')" style="cursor:pointer;">SKU ↕</th>
+        <th onclick="sortLog('descripcion1')" style="cursor:pointer;">Descripción 1 ↕</th>
+        <th>Descripción 2</th>
+        <th onclick="sortLog('cantidad')" style="cursor:pointer;">Cantidad ↕</th>
+        <th>OC Cliente</th>
+        <th onclick="sortLog('of_mch')" style="cursor:pointer;">OF MCH ↕</th>
+        <th>OF Interna</th>
+        <th onclick="sortLog('cliente')" style="cursor:pointer;">Cliente ↕</th>
+        <th onclick="sortLog('area')" style="cursor:pointer;">Área ↕</th>
+        <th onclick="sortLog('estado')" style="cursor:pointer;">Estado ↕</th>
+        <th>Comentarios</th><th>🖨</th><th></th>
+      </tr></thead>
+      <tbody id="log-body">
+        <tr><td colspan="15"><div class="empty-state">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          <p>No hay registros de OF Logística</p><small>Sube un PDF para comenzar</small>
+        </div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════ DASHBOARD PAGE ══════════ -->
+<div id="page-dashboard" class="page">
+  <div id="filter-bar">
+    <label>Filtros</label>
+    <select id="f-cliente" class="fsel" onchange="applyFilters()"><option value="">Todos los clientes</option></select>
+    <select id="f-area"    class="fsel" onchange="applyFilters()"><option value="">Todas las áreas</option></select>
+    <select id="f-estado"  class="fsel" onchange="applyFilters()">
+      <option value="">Todos los estados</option>
+      <option>Pendiente</option><option>Parcial</option><option>Entregado</option>
+    </select>
+    <select id="f-año"  class="fsel" onchange="applyFilters()"><option value="">Todos los años</option></select>
+    <select id="f-mes"  class="fsel" onchange="applyFilters()"><option value="">Todos los meses</option></select>
+    <label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Desde</label>
+    <input type="date" id="f-desde" class="fsel" style="padding:4px 8px;" onchange="applyFilters()"/>
+    <label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Hasta</label>
+    <input type="date" id="f-hasta" class="fsel" style="padding:4px 8px;" onchange="applyFilters()"/>
+    <span id="rec-count"></span>
+    <button class="reset-btn" onclick="resetFilters()">✕ Limpiar</button>
+  </div>
+
+  <div class="kpi-row" style="grid-template-columns:repeat(7,1fr);">
+    <div class="kpi"><span class="klabel">Total Órdenes</span><span class="kval" id="kpi-total">—</span><span class="ksub">registros</span></div>
+    <div class="kpi"><span class="klabel">Cantidad Total</span><span class="kval" id="kpi-qty">—</span><span class="ksub">unidades</span></div>
+    <div class="kpi"><span class="klabel">Entregadas</span><span class="kval" id="kpi-ent">—</span><span class="ksub" id="kpi-ent-s"></span><div class="kbar"><div class="kbar-fill" id="kb-ent" style="background:var(--c0)"></div></div></div>
+    <div class="kpi"><span class="klabel">Pendientes</span><span class="kval" id="kpi-pend">—</span><span class="ksub" id="kpi-pend-s"></span><div class="kbar"><div class="kbar-fill" id="kb-pend" style="background:var(--c2)"></div></div></div>
+    <div class="kpi"><span class="klabel">⚠️ Vencidas</span><span class="kval" id="kpi-venc" style="color:#dc3545;">—</span><span class="ksub">sin entregar</span><div class="kbar"><div class="kbar-fill" id="kb-venc" style="background:#dc3545;"></div></div></div>
+    <div class="kpi"><span class="klabel">Cumplimiento</span><span class="kval" id="kpi-cum">—</span><span class="ksub">a tiempo</span><div class="kbar"><div class="kbar-fill" id="kb-cum" style="background:var(--c1)"></div></div></div>
+    <div class="kpi"><span class="klabel">Días Prom.</span><span class="kval" id="kpi-dias">—</span><span class="ksub">ingreso→término</span></div>
+  </div>
+
+  <div class="chart-grid" style="margin-bottom:10px;">
+    <div class="chart-card"><h3>Descripción 2 × Cantidad</h3><div class="ch-wrap"><canvas id="ch-desc2"></canvas></div></div>
+    <div class="chart-card"><h3>Descripción 1 × Cantidad</h3><div class="ch-wrap"><canvas id="ch-desc1"></canvas></div></div>
+  </div>
+  <div class="chart-grid" style="margin-bottom:10px;">
+    <div class="chart-card"><h3>Cantidad por Mes</h3><div class="ch-wrap"><canvas id="ch-mes"></canvas></div></div>
+    <div class="chart-card"><h3>OF por Mes</h3><div class="ch-wrap"><canvas id="ch-of-mes"></canvas></div></div>
+  </div>
+  <div class="chart-grid g3">
+    <div class="chart-card"><h3>Cumplimiento de Entrega</h3><div class="ch-wrap donut"><canvas id="ch-cum"></canvas></div></div>
+    <div class="chart-card"><h3>MSTEEL de Órdenes</h3><div class="ch-wrap donut"><canvas id="ch-estado"></canvas></div></div>
+    <div class="chart-card"><h3>Top Clientes × Cantidad</h3><div class="ch-wrap"><canvas id="ch-cliente"></canvas></div></div>
+  </div>
+  <div class="chart-card" style="margin-top:10px;">
+    <h3>📊 Tabla Pareto — Descripción × Cantidad</h3>
+    <div id="pareto-table-wrap" style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="background:#f8fafc;border-bottom:1px solid var(--border);">
+            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);">#</th>
+            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);">Descripción</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text2);">Cantidad</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text2);">% del Total</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text2);">% Acumulado</th>
+            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);">Barra</th>
+          </tr>
+        </thead>
+        <tbody id="pareto-body">
+          <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text2);">Cargando datos…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ DATA PAGE ══════════ -->
+<div id="page-data" class="page">
+  <div class="data-toolbar">
+    <h2>Datos completos</h2>
+    <input id="data-search" type="text" placeholder="Buscar en cualquier columna…" oninput="renderDataTable()"/>
+    <button class="btn-primary" onclick="exportCSVData()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar CSV
+    </button>
+  </div>
+  <div class="data-wrap">
+    <table class="dtbl">
+      <thead><tr>
+        <th onclick="sortData('fecha')">Fecha <span>↕</span></th>
+        <th onclick="sortData('sku')">SKU <span>↕</span></th>
+        <th onclick="sortData('descripcion1')">Desc 1 <span>↕</span></th>
+        <th onclick="sortData('descripcion2')">Desc 2 <span>↕</span></th>
+        <th onclick="sortData('cantidad')" style="text-align:right;">Cant. <span>↕</span></th>
+        <th onclick="sortData('oc_cliente')">OC Cliente <span>↕</span></th>
+        <th onclick="sortData('of_mch')">OF MCH <span>↕</span></th>
+        <th onclick="sortData('of_interna')">OF Interna <span>↕</span></th>
+        <th onclick="sortData('cliente')">Cliente <span>↕</span></th>
+        <th onclick="sortData('area')">Área <span>↕</span></th>
+        <th onclick="sortData('estado')">MSTEEL <span>↕</span></th>
+        <th onclick="sortData('fecha_entrega')">F. Entrega <span>↕</span></th>
+        <th onclick="sortData('fecha_ingreso')">F. Ingreso <span>↕</span></th>
+        <th onclick="sortData('fecha_termino')">F. Término <span>↕</span></th>
+        <th onclick="sortData('msteel')">Logística <span>↕</span></th>
+      </tr></thead>
+      <tbody id="data-body">
+        <tr><td colspan="15"><div class="empty-state"><p>Conecta Supabase para ver los datos</p></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div id="data-footer"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+<!-- ══════════ MARCA PAGE ══════════ -->
+<div id="page-marca" class="page">
+  <div class="marca-layout">
+
+    <!-- LEFT PANEL: busqueda + controles -->
+    <div class="marca-panel">
+      <div>
+        <h2>🏷 Generador de Marca</h2>
+        <p>Busca por área o SKU para generar la etiqueta de identificación.</p>
+      </div>
+
+      <div class="search-group">
+        <label>Filtrar por Área</label>
+        <select id="m-area" onchange="marcaFilterArea()">
+          <option value="">Todas las áreas</option>
+        </select>
+      </div>
+
+      <div class="search-group">
+        <label>Buscar SKU o Descripción</label>
+        <input id="m-search" type="text" placeholder="Ej: IMPU-1403 o MSF-MC…" oninput="marcaSearch()"/>
+      </div>
+
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Resultados</div>
+        <div class="results-list" id="marca-results">
+          <div class="marca-empty">Escribe para buscar órdenes</div>
+        </div>
+      </div>
+
+      <div class="search-group" id="m-qty-wrap" style="display:none;">
+        <label>Cantidad (editable)</label>
+        <div class="qty-edit">
+          <button onclick="marcaQtyStep(-1)" style="width:32px;height:32px;border:1px solid var(--border);border-radius:var(--r);background:#fff;font-size:18px;cursor:pointer;font-weight:700;">−</button>
+          <input type="number" id="m-qty" min="1" value="1" oninput="marcaRefreshPreview()"/>
+          <button onclick="marcaQtyStep(1)"  style="width:32px;height:32px;border:1px solid var(--border);border-radius:var(--r);background:#fff;font-size:18px;cursor:pointer;font-weight:700;">+</button>
+        </div>
+      </div>
+
+      <button class="print-btn" id="m-print-btn" disabled onclick="printMarca()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Imprimir Marca (Carta horizontal)
+      </button>
+    </div>
+
+    <!-- RIGHT PANEL: preview -->
+    <div class="marca-preview-wrap" id="marca-preview-wrap">
+      <div style="text-align:center;color:#94a3b8;">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom:12px;opacity:.4"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+        <p style="font-size:14px;font-weight:500;">Selecciona una orden para previsualizar la marca</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════ MOVIMIENTOS PAGE (solo ADMIN) ══════════ -->
+<div id="page-movimientos" class="page">
+  <div class="ord-toolbar">
+    <h2>🛡 Movimientos <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label-mov"></span></h2>
+    <input id="mov-search" type="text" placeholder="🔍 Buscar usuario, módulo, acción…" oninput="renderMovimientosTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:240px;outline:none;"/>
+    <select id="mov-filter-usuario" onchange="renderMovimientosTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los usuarios</option>
+    </select>
+    <select id="mov-filter-modulo" onchange="renderMovimientosTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los módulos</option>
+    </select>
+    <button class="btn-primary" onclick="loadMovimientos()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Actualizar
+    </button>
+  </div>
+  <div class="table-wrap">
+    <table class="ord-tbl">
+      <thead><tr>
+        <th>Fecha / Hora</th><th>Usuario</th><th>Módulo</th><th>Acción</th><th>Detalle</th>
+      </tr></thead>
+      <tbody id="mov-body">
+        <tr><td colspan="5"><div class="empty-state">
+          <p>Sin movimientos registrados todavía</p>
+        </div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="toast"></div>
+
 <script>
 // ══════════════════════════════════════════════════════
 //  GLOBALS
@@ -2797,11 +5362,67 @@ let pletinas = [];
 let pletSort = { col:'sku', dir:1 };
 const TABLE_PLET = 'pletinas';
 
+// Lista maestra de pletinas (del Excel BOM-2026, hoja Tipos de pletina)
+// Se inserta automáticamente la primera vez que se conecta si la tabla está vacía.
+const PLETINAS_SEED = [
+  {sku:'80001',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-10x10/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80002',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-12x3/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80003',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-12x5/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80004',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-12x12/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80005',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-16x3/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80006',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-16x5/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80007',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-20x3/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80008',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-20x5/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80009',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-20x6/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80010',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-20x8/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80011',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-20x10/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80012',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-20x12/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80013',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-25x3/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80014',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-25x5/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80015',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-25x6/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80016',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-25x8/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80017',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-25x10/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80018',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-28x10/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80019',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-32x3/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80020',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-32x5/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80021',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-32x6/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80022',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-32x8/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80023',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-32x10/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80024',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-38x3/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80025',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-38x5/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80026',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-38x6/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80027',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-38x8/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80028',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-38x10/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80029',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-40x5/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80030',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-50x5/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80031',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-50x8/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80032',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-50x10/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80033',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-50x12/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80034',tipo:'RM',nombre:'Angulo',descripcion1:'ANGULO-ACERO-20x20x3/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80035',tipo:'RM',nombre:'Barra',descripcion1:'BARRA-ACERO-12X12/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80036',tipo:'RM',nombre:'Barra',descripcion1:'BARRA-ACERO-25X10/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80037',tipo:'RM',nombre:'Barra',descripcion1:'BARRA-ACERO-38X8/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80038',tipo:'RM',nombre:'Barra',descripcion1:'BARRA-ACERO-10X10/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80039',tipo:'RM',nombre:'Fierro',descripcion1:'FIERRO-REDONDO-LISO 1/4',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+  {sku:'80040',tipo:'RM',nombre:'Pletina',descripcion1:'PLETINA-ACERO-100X5/6mt/',descripcion2:'ACERO-CARBONO-//Unidad',stock:0},
+];
+
 async function loadPletinas() {
   if (!sbClient) return;
   const { data, error } = await sbClient.from(TABLE_PLET).select('*').order('sku');
   if (error) { toast('Error cargando pletinas: '+error.message,'error'); return; }
-  pletinas = data || [];
+
+  // Si la tabla está vacía, insertar la lista maestra automáticamente
+  if (!data || data.length === 0) {
+    toast('Cargando catálogo de pletinas…', '');
+    const { error: insertErr } = await sbClient.from(TABLE_PLET).insert(PLETINAS_SEED);
+    if (insertErr) { toast('Error al cargar catálogo: '+insertErr.message,'error'); return; }
+    const { data: data2 } = await sbClient.from(TABLE_PLET).select('*').order('sku');
+    pletinas = data2 || [];
+    toast('✓ Catálogo de pletinas cargado ('+pletinas.length+' registros)', 'success');
+  } else {
+    pletinas = data;
+  }
   renderPletinasTable();
 }
 
