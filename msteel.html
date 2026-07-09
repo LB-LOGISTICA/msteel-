@@ -2880,9 +2880,12 @@ function calcPletinasNecesarias() {
     const bom = BOM_FRAMES[desc1];
     if (!bom) continue;
     for (const {p, lt} of bom) {
-      // Tiras de 6000mm con 10% pérdida: ceil(lt*1.1/6000) tiras por unidad × qty
-      const tirasPorUnidad = Math.ceil(lt*1.1/6000);
-      nec[p] = (nec[p]||0) + tirasPorUnidad * qty;
+      // Fórmula correcta: primero calcular longitud total (lt × qty), luego dividir
+      // por 6000mm (largo de tira) con 10% de pérdida y recién aplicar ceil.
+      // Ej: MSF-MC-034-001, 216 unid, 10x10 (lt=546):
+      //   ceil(546 × 216 × 1.1 / 6000) = ceil(129.730 / 6000) = ceil(21.6) = 22 tiras ✓
+      const tirasEstaOrden = Math.ceil(lt * qty * 1.1 / 6000);
+      nec[p] = (nec[p]||0) + tirasEstaOrden;
     }
   }
   return nec;
