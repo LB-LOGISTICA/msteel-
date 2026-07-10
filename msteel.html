@@ -901,6 +901,10 @@ async function loadOrders() {
   renderOrdTable();
   checkVencidasNotify();
   toast(`${orders.length} órdenes cargadas`, 'success');
+  // Si el Dashboard ya está activo, actualizarlo con los datos nuevos
+  if (document.getElementById('page-dashboard')?.classList.contains('active')) {
+    populateFilterOptions(); applyFilters();
+  }
 }
 
 async function loadLogOrders() {
@@ -2623,6 +2627,13 @@ async function intentarLogin() {
     localStorage.setItem('msteel_user', JSON.stringify(currentUser));
     ocultarLogin();
     aplicarPermisos();
+    // Asegurar que Órdenes quede activo al entrar
+    const primerTab = document.querySelector('.nav-tab');
+    if (primerTab) showPage('ordenes', primerTab);
+    // Iniciar carga de datos
+    loadOrders();
+    loadPletinas();
+    startAutoRefresh();
     toast(`Bienvenido, ${currentUser.usuario}`, 'success');
     logMovimiento('Sistema', 'Inicio de sesión', `${currentUser.usuario} (${rolLabel(currentUser.rol)})`);
   } catch(e) { errEl.textContent = 'Error: ' + e.message; }
