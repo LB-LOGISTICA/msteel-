@@ -2421,7 +2421,7 @@ function updateLoginBg(color) {
 }
 
 function setHeaderColor(color) {
-  document.getElementById('main-header').style.background = color;
+  const sidebar = document.getElementById('sidebar'); if(sidebar) sidebar.style.background = color;
   document.getElementById('hdr-custom-color').value = color;
   localStorage.setItem('msteel_hdr_color', color);
   updateLoginBg(color);
@@ -2459,7 +2459,7 @@ function setBgImage(input) {
 function resetBg() {
   document.body.style.backgroundImage = 'none';
   document.body.style.backgroundColor = '#f0f4f8';
-  document.getElementById('main-header').style.background = '#0F6E56';
+  const sidebar = document.getElementById('sidebar'); if(sidebar) sidebar.style.background = '#0F6E56';
   localStorage.removeItem('msteel_bg_color');
   localStorage.removeItem('msteel_bg_image');
   localStorage.removeItem('msteel_hdr_color');
@@ -2478,7 +2478,7 @@ function loadSavedAppearance() {
   // Header color
   const hdrColor = localStorage.getItem('msteel_hdr_color');
   if (hdrColor) {
-    document.getElementById('main-header').style.background = hdrColor;
+    const sidebar = document.getElementById('sidebar'); if(sidebar) sidebar.style.background = hdrColor;
     const hdrInput = document.getElementById('hdr-custom-color');
     if (hdrInput) hdrInput.value = hdrColor;
   }
