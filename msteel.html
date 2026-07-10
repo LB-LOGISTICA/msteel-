@@ -877,18 +877,19 @@ async function initSupabase() {
   const st = document.getElementById('conn-status');
   st.textContent = 'Conectando…'; st.className = 'pending';
   try {
+    // Crear el cliente INMEDIATAMENTE (sin esperar ninguna query)
+    // para que el login pueda funcionar de inmediato
     sbClient = supabase.createClient(url, key);
-    const { error } = await sbClient.from(TABLE).select('id').limit(1);
-    if (error) throw error;
     st.textContent = '✓ Conectado'; st.className = 'ok';
-    toast('Supabase conectado', 'success');
+
+    // Cargar datos en segundo plano (no bloquea el login)
     loadOrders();
-    loadLogOrders();
     loadPletinas();
     startAutoRefresh();
   } catch(e) {
     st.textContent = '✗ Error'; st.className = 'err';
     toast('Error: ' + e.message, 'error');
+    sbClient = null;
   }
 }
 
@@ -2605,7 +2606,15 @@ async function intentarLogin() {
   const errEl    = document.getElementById('login-error');
   errEl.textContent = '';
   if (!usuario || !password) { errEl.textContent = 'Ingresa usuario y contraseña'; return; }
-  if (!sbClient) { errEl.textContent = 'Conectando con la base de datos, espera un momento e intenta de nuevo…'; return; }
+  if (!sbClient) {
+    errEl.textContent = 'Conectando…';
+    const url = document.getElementById('sb-url')?.value?.trim();
+    const key = document.getElementById('sb-key')?.value?.trim();
+    if (url && key) {
+      try { sbClient = supabase.createClient(url, key); }
+      catch(e) { errEl.textContent = 'Error de conexión: '+e.message; return; }
+    } else { errEl.textContent = 'Sin conexión a la base de datos'; return; }
+  }
   try {
     const { data, error } = await sbClient.rpc('verificar_login', { p_usuario: usuario, p_password: password });
     if (error) { errEl.textContent = 'Error de conexión: ' + error.message; return; }
