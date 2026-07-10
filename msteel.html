@@ -14,37 +14,48 @@
   --surface:#fff; --bg:#f0f4f8; --border:#e2e8f0;
   --text:#1a202c; --text2:#64748b;
   --r:8px; --rl:12px;
+  --sidebar-w:210px;
   --c0:#1D9E75;--c1:#3B82F6;--c2:#F59E0B;--c3:#EF4444;--c4:#8B5CF6;--c5:#06B6D4;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background-color .4s;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background-color .4s;display:flex;}
+
+/* ── SIDEBAR ── */
+#sidebar{width:var(--sidebar-w);min-height:100vh;background:var(--brand);display:flex;flex-direction:column;position:fixed;top:0;left:0;z-index:200;transition:background .3s;box-shadow:2px 0 12px rgba(0,0,0,.15);}
+#sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid rgba(255,255,255,.12);}
+.sidebar-logo-row{display:flex;align-items:center;gap:10px;}
+.logo-slot{width:42px;height:42px;border-radius:8px;overflow:hidden;cursor:pointer;flex-shrink:0;background:rgba(255,255,255,.15);border:2px dashed rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;transition:.2s;position:relative;}
+.logo-slot:hover{border-color:#fff;background:rgba(255,255,255,.25);}
+.logo-slot img{width:100%;height:100%;object-fit:contain;display:none;}
+.logo-slot svg{pointer-events:none;}
+.logo-slot input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+#sidebar-title{color:#fff;font-size:13px;font-weight:800;letter-spacing:.3px;line-height:1.2;}
+#sidebar-sub{color:rgba(255,255,255,.6);font-size:10px;font-weight:500;margin-top:2px;letter-spacing:.5px;}
+
+/* ── NAV TABS (sidebar vertical) ── */
+.nav-tabs{display:flex;flex-direction:column;gap:2px;padding:12px 10px;flex:1;overflow-y:auto;}
+.nav-tab{color:rgba(255,255,255,.7);font-size:12px;font-weight:600;padding:10px 14px;border-radius:10px;cursor:pointer;border:none;background:none;transition:.15s;letter-spacing:.3px;white-space:nowrap;text-align:left;display:flex;align-items:center;gap:8px;width:100%;}
+.nav-tab:hover{color:#fff;background:rgba(255,255,255,.12);}
+.nav-tab.active{color:var(--brand);background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+
+/* ── SIDEBAR FOOTER (user + actions) ── */
+#sidebar-footer{padding:12px 10px;border-top:1px solid rgba(255,255,255,.12);}
+#user-badge{font-size:10px;font-weight:700;color:rgba(255,255,255,.8);display:block;margin-bottom:8px;padding:0 4px;}
+.hdr-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s;white-space:nowrap;width:100%;margin-bottom:4px;}
+.hdr-btn:hover{background:rgba(255,255,255,.22);}
+
+/* ── MAIN AREA ── */
+#main-area{margin-left:var(--sidebar-w);flex:1;min-height:100vh;display:flex;flex-direction:column;}
 
 /* ── PAGES ── */
 .page{display:none;padding:1.25rem 1.5rem;}
 .page.active{display:block;}
 
-header{background:var(--brand);height:76px;display:flex;align-items:center;padding:0 1.5rem;gap:14px;position:sticky;top:0;z-index:200;transition:background .3s;}
-.logo-slot{width:52px;height:52px;border-radius:10px;overflow:hidden;cursor:pointer;flex-shrink:0;background:rgba(255,255,255,.15);border:2px dashed rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;transition:.2s;position:relative;}
-.logo-slot:hover{border-color:#fff;background:rgba(255,255,255,.25);}
-.logo-slot img{width:100%;height:100%;object-fit:contain;display:none;}
-.logo-slot svg{pointer-events:none;}
-.logo-slot input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
-header h1{font-size:16px;font-weight:700;color:#fff;letter-spacing:.2px;white-space:nowrap;}
-header .hbadge{background:rgba(255,255,255,.18);color:#fff;font-size:10px;padding:2px 8px;border-radius:20px;white-space:nowrap;}
-
-/* centered nav */
-.nav-tabs{display:flex;gap:3px;position:absolute;left:50%;transform:translateX(-50%);}
-.nav-tab{color:rgba(255,255,255,.65);font-size:12px;font-weight:600;padding:7px 20px;border-radius:22px;cursor:pointer;border:none;background:none;transition:.15s;letter-spacing:.3px;white-space:nowrap;}
-.nav-tab:hover{color:#fff;background:rgba(255,255,255,.15);}
-.nav-tab.active{color:var(--brand);background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15);}
-
-/* right side header actions */
-.header-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
-.hdr-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;transition:.15s;white-space:nowrap;}
-.hdr-btn:hover{background:rgba(255,255,255,.25);}
+/* Mantener compatibilidad con "header" para el personalizar y conn-status */
+header{display:none;}
 
 /* ── BG EDITOR PANEL ── */
-#bg-panel{display:none;position:fixed;top:70px;right:16px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:16px;width:260px;z-index:10000;box-shadow:0 8px 32px rgba(0,0,0,.15);}
+#bg-panel{display:none;position:fixed;top:auto;bottom:16px;left:calc(var(--sidebar-w) + 12px);background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:16px;width:260px;z-index:10000;box-shadow:0 8px 32px rgba(0,0,0,.15);}
 #bg-panel h4{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
 #bg-panel h4 button{background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;line-height:1;}
 .bg-section{margin-bottom:12px;}
@@ -329,46 +340,56 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
   </div>
 </div>
 
-<!-- HEADER -->
-<header id="main-header">
-  <!-- Logo editable -->
-  <div class="logo-slot" title="Haz clic para subir tu logo">
-    <svg id="logo-default" width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <rect x="2" y="8" width="5" height="10" rx="1" fill="#fff"/>
-      <rect x="7.5" y="5" width="5" height="13" rx="1" fill="rgba(255,255,255,.7)"/>
-      <rect x="13" y="2" width="5" height="16" rx="1" fill="rgba(255,255,255,.4)"/>
-    </svg>
-    <img id="logo-img" alt="Logo"/>
-    <input type="file" accept="image/*" onchange="uploadLogo(this)"/>
+<!-- ══════════ SIDEBAR ══════════ -->
+<div id="sidebar">
+  <div id="sidebar-logo">
+    <div class="sidebar-logo-row">
+      <div class="logo-slot" title="Clic para subir logo">
+        <svg id="logo-default" width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <rect x="2" y="8" width="5" height="10" rx="1" fill="#fff"/>
+          <rect x="7.5" y="5" width="5" height="13" rx="1" fill="rgba(255,255,255,.7)"/>
+          <rect x="13" y="2" width="5" height="16" rx="1" fill="rgba(255,255,255,.4)"/>
+        </svg>
+        <img id="logo-img" alt="Logo"/>
+        <input type="file" accept="image/*" onchange="uploadLogo(this)"/>
+      </div>
+      <div>
+        <div id="sidebar-title">MSTEEL</div>
+        <div id="sidebar-sub">MULTOTEC STEEL</div>
+      </div>
+    </div>
   </div>
 
-  <h1>Órdenes de Fabricación</h1>
-  <span class="hbadge">MULTOTEC STEEL</span>
-
-  <!-- Tabs centrados -->
+  <!-- Módulos -->
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('ordenes',this)">📋 Órdenes <span id="alert-badge" style="display:none;background:#dc3545;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:3px;"></span></button>
+    <button class="nav-tab active" onclick="showPage('ordenes',this)">📋 Órdenes <span id="alert-badge" style="display:none;background:#dc3545;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"></span></button>
     <button class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</button>
-    <button class="nav-tab" onclick="showPage('data',this)">🗄 Data</button>
     <button class="nav-tab" onclick="showPage('pletinas',this)">🔩 Pletinas</button>
-    <button class="nav-tab" onclick="showPage('logistica',this)">🚚 OF Logística</button>
     <button class="nav-tab" onclick="showPage('marca',this)">🏷 Marca</button>
+    <button class="nav-tab" id="nav-data" style="display:none;" onclick="showPage('data',this)">🗄 BOM / Data</button>
     <button class="nav-tab" id="nav-movimientos" style="display:none;" onclick="showPage('movimientos',this)">🛡 Movimientos</button>
   </div>
 
-  <!-- Acciones derecha -->
-  <div class="header-right">
-    <span id="user-badge" style="font-size:11px;font-weight:600;color:rgba(255,255,255,.85);margin-right:6px;"></span>
-    <button class="hdr-btn" onclick="cerrarSesion()" title="Cerrar sesión">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      Salir
+  <!-- Footer: usuario + acciones -->
+  <div id="sidebar-footer">
+    <span id="user-badge"></span>
+    <button class="hdr-btn" onclick="abrirModalCambioPass()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Contraseña
     </button>
     <button class="hdr-btn" onclick="toggleBgPanel()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
       Personalizar
     </button>
+    <button class="hdr-btn" onclick="cerrarSesion()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Cerrar sesión
+    </button>
   </div>
-</header>
+</div>
+
+<!-- ══════════ MAIN AREA ══════════ -->
+<div id="main-area">
 
 <!-- BG EDITOR PANEL -->
 <div id="bg-panel">
@@ -526,6 +547,57 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
   </div>
 </div>
 
+<!-- ══════════ DASHBOARD PAGE ══════════ -->
+<div id="page-dashboard" class="page">
+
+  <!-- Filtros superiores -->
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
+    <select id="dash-filter-area" onchange="applyFilters()" style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todas las áreas</option>
+    </select>
+    <select id="dash-filter-cliente" onchange="applyFilters()" style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los clientes</option>
+    </select>
+    <select id="dash-filter-estado" onchange="applyFilters()" style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los estados</option>
+      <option>Pendiente</option><option>Parcial</option><option>Entregado</option>
+    </select>
+    <input type="date" id="dash-from" onchange="applyFilters()" style="border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;"/>
+    <input type="date" id="dash-to"   onchange="applyFilters()" style="border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;"/>
+    <button onclick="resetDashFilters()" style="background:none;border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;cursor:pointer;color:var(--text2);">✕ Limpiar</button>
+    <span id="dash-total" style="margin-left:auto;font-size:13px;font-weight:600;color:var(--text2);"></span>
+  </div>
+
+  <!-- KPIs -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:1.2rem;" id="kpi-row"></div>
+
+  <!-- Gráficos 2×2 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+    <div class="chart-card"><h3>Descripción 2 × Cantidad</h3><div class="ch-wrap"><canvas id="ch-desc2"></canvas></div></div>
+    <div class="chart-card"><h3>Descripción 1 × Cantidad</h3><div class="ch-wrap"><canvas id="ch-desc1"></canvas></div></div>
+    <div class="chart-card"><h3>Cantidad por Mes</h3><div class="ch-wrap"><canvas id="ch-mes"></canvas></div></div>
+    <div class="chart-card"><h3>OF por Mes</h3><div class="ch-wrap"><canvas id="ch-of-mes"></canvas></div></div>
+  </div>
+
+  <!-- Gráficos 2×2 segunda fila -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;">
+    <div class="chart-card"><h3>MSTEEL de Órdenes</h3><div class="ch-wrap donut"><canvas id="ch-estado"></canvas></div></div>
+    <div class="chart-card"><h3>Cumplimiento</h3><div class="ch-wrap donut"><canvas id="ch-cum"></canvas></div></div>
+    <div class="chart-card"><h3>Top Clientes</h3><div class="ch-wrap"><canvas id="ch-cliente"></canvas></div></div>
+  </div>
+
+  <!-- Tabla Pareto -->
+  <div class="chart-card" style="margin-bottom:14px;">
+    <h3>Análisis Pareto — Descripción 2</h3>
+    <div class="table-wrap" style="margin-top:8px;">
+      <table class="ord-tbl">
+        <thead><tr><th>Descripción 2</th><th>OFs</th><th>Cantidad</th><th>% Acum.</th><th>Barra</th></tr></thead>
+        <tbody id="pareto-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════ PLETINAS PAGE ══════════ -->
 <div id="page-pletinas" class="page">
 
@@ -615,209 +687,36 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
   </div>
 </div>
 
-<!-- ══════════ OF LOGÍSTICA PAGE ══════════ -->
-<div id="page-logistica" class="page">
 
-  <!-- UPLOAD ZONE — compacta -->
-  <div id="upload-zone-log"
-       ondragover="event.preventDefault();this.classList.add('dragover')"
-       ondragleave="this.classList.remove('dragover')"
-       ondrop="handleDropLog(event)">
-    <div style="display:flex;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap;">
-      <div style="display:flex;align-items:center;gap:8px;color:var(--brand);">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9,15 12,12 15,15"/></svg>
-        <span style="font-size:13px;font-weight:600;color:var(--brand);">Arrastra PDFs aquí o</span>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="upload-btn single" onclick="event.stopPropagation();document.getElementById('pdf-input-log').click()">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-          PDF 1 archivo
-        </button>
-        <button class="upload-btn bulk" onclick="event.stopPropagation();document.getElementById('pdf-input-bulk-log').click()">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><polyline points="9,14 12,11 15,14"/></svg>
-          PDF Masivo
-        </button>
-        <button class="upload-btn excel" onclick="event.stopPropagation();document.getElementById('excel-input-log').click()">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-          Subir Excel
-        </button>
-        <button class="upload-btn" onclick="event.stopPropagation();downloadTemplate()" style="background:#065f46;color:#fff;border:none;">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          📥 Plantilla
-        </button>
-      </div>
-    </div>
-    <input type="file" id="pdf-input-log" accept="application/pdf" onchange="handleFilesLog([this.files[0]])"/>
-    <input type="file" id="pdf-input-bulk-log" accept="application/pdf" multiple onchange="handleFilesLog(Array.from(this.files))"/>
-    <input type="file" id="excel-input-log" accept=".xlsx,.xls,.csv" onchange="handleExcelLog(this.files[0])"/>
-  </div>
-
-  <div id="progress-wrap-log">
-    <span id="progress-text-log">Procesando…</span>
-    <div id="progress-bar-wrap-log"><div id="progress-bar-log"></div></div>
-    <span id="progress-pct-log">0%</span>
-  </div>
-
-  <div id="bulk-panel-log" style="display:none;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:1rem;margin-bottom:1rem;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <span style="font-size:13px;font-weight:600;">Carga masiva</span>
-      <span id="bulk-summary-log" style="font-size:12px;color:var(--text2);"></span>
-    </div>
-    <div id="bulk-list-log" style="display:flex;flex-direction:column;gap:6px;"></div>
-  </div>
-
-  <!-- TOOLBAR con buscador -->
-  <div class="ord-toolbar log-toolbar">
-    <h2>OF Logística registradas <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label-log"></span></h2>
-    <input id="log-search" type="text" placeholder="🔍 Buscar SKU, cliente, OF…" oninput="renderLogTable()"
-      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:200px;outline:none;"/>
-    <select id="log-filter-area" onchange="renderLogTable()"
-      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
-      <option value="">Todas las áreas</option>
-    </select>
-    <select id="log-filter-cliente" onchange="renderLogTable()"
-      style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
-      <option value="">Todos los clientes</option>
-    </select>
-    <button class="filter-pill active" onclick="setFilterLog('todos',this)">Todos</button>
-    <button class="filter-pill" onclick="setFilterLog('Pendiente',this)">Pendiente</button>
-    <button class="filter-pill" onclick="setFilterLog('Parcial',this)">Parcial</button>
-    <button class="filter-pill" onclick="setFilterLog('Entregado',this)">Entregado</button>
-    <button class="btn-primary" onclick="exportCSVLog()">
+<!-- ══════════ DATA / BOM PAGE (solo Admin) ══════════ -->
+<div id="page-data" class="page">
+  <div class="ord-toolbar" style="flex-wrap:wrap;gap:8px;">
+    <h2>🗄 BOM / Data <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label-data"></span></h2>
+    <input id="bom-search" type="text" placeholder="🔍 Buscar N° Plano o pletina…" oninput="renderBOMTable()"
+      style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:220px;outline:none;"/>
+    <button class="btn-primary" onclick="agregarFrameBOM()" style="background:#0F6E56;">＋ Nuevo Frame</button>
+    <button class="btn-primary" onclick="exportCSVBOM()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Exportar CSV
     </button>
   </div>
-
   <div class="table-wrap">
     <table class="ord-tbl">
       <thead><tr>
-        <th>#</th>
-        <th onclick="sortLog('fecha')" style="cursor:pointer;">Fecha ↕</th>
-        <th onclick="sortLog('sku')" style="cursor:pointer;">SKU ↕</th>
-        <th onclick="sortLog('descripcion1')" style="cursor:pointer;">Descripción 1 ↕</th>
-        <th>Descripción 2</th>
-        <th onclick="sortLog('cantidad')" style="cursor:pointer;">Cantidad ↕</th>
-        <th>OC Cliente</th>
-        <th onclick="sortLog('of_mch')" style="cursor:pointer;">OF MCH ↕</th>
-        <th>OF Interna</th>
-        <th onclick="sortLog('cliente')" style="cursor:pointer;">Cliente ↕</th>
-        <th onclick="sortLog('area')" style="cursor:pointer;">Área ↕</th>
-        <th onclick="sortLog('estado')" style="cursor:pointer;">Estado ↕</th>
-        <th>Comentarios</th><th>🖨</th><th></th>
+        <th>N° Plano (Descripción 1)</th>
+        <th>Pletina 1</th><th>LT 1 (mm)</th>
+        <th>Pletina 2</th><th>LT 2 (mm)</th>
+        <th>Pletina 3</th><th>LT 3 (mm)</th>
+        <th>Pletina 4</th><th>LT 4 (mm)</th>
+        <th>Pletina 5</th><th>LT 5 (mm)</th>
+        <th></th>
       </tr></thead>
-      <tbody id="log-body">
-        <tr><td colspan="15"><div class="empty-state">
-          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-          <p>No hay registros de OF Logística</p><small>Sube un PDF para comenzar</small>
-        </div></td></tr>
+      <tbody id="bom-body">
+        <tr><td colspan="12"><div class="empty-state"><p>Cargando BOM…</p></div></td></tr>
       </tbody>
     </table>
   </div>
 </div>
-
-<!-- ══════════ DASHBOARD PAGE ══════════ -->
-<div id="page-dashboard" class="page">
-  <div id="filter-bar">
-    <label>Filtros</label>
-    <select id="f-cliente" class="fsel" onchange="applyFilters()"><option value="">Todos los clientes</option></select>
-    <select id="f-area"    class="fsel" onchange="applyFilters()"><option value="">Todas las áreas</option></select>
-    <select id="f-estado"  class="fsel" onchange="applyFilters()">
-      <option value="">Todos los estados</option>
-      <option>Pendiente</option><option>Parcial</option><option>Entregado</option>
-    </select>
-    <select id="f-año"  class="fsel" onchange="applyFilters()"><option value="">Todos los años</option></select>
-    <select id="f-mes"  class="fsel" onchange="applyFilters()"><option value="">Todos los meses</option></select>
-    <label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-left:4px;">Desde</label>
-    <input type="date" id="f-desde" class="fsel" style="padding:4px 8px;" onchange="applyFilters()"/>
-    <label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Hasta</label>
-    <input type="date" id="f-hasta" class="fsel" style="padding:4px 8px;" onchange="applyFilters()"/>
-    <span id="rec-count"></span>
-    <button class="reset-btn" onclick="resetFilters()">✕ Limpiar</button>
-  </div>
-
-  <div class="kpi-row" style="grid-template-columns:repeat(7,1fr);">
-    <div class="kpi"><span class="klabel">Total Órdenes</span><span class="kval" id="kpi-total">—</span><span class="ksub">registros</span></div>
-    <div class="kpi"><span class="klabel">Cantidad Total</span><span class="kval" id="kpi-qty">—</span><span class="ksub">unidades</span></div>
-    <div class="kpi"><span class="klabel">Entregadas</span><span class="kval" id="kpi-ent">—</span><span class="ksub" id="kpi-ent-s"></span><div class="kbar"><div class="kbar-fill" id="kb-ent" style="background:var(--c0)"></div></div></div>
-    <div class="kpi"><span class="klabel">Pendientes</span><span class="kval" id="kpi-pend">—</span><span class="ksub" id="kpi-pend-s"></span><div class="kbar"><div class="kbar-fill" id="kb-pend" style="background:var(--c2)"></div></div></div>
-    <div class="kpi"><span class="klabel">⚠️ Vencidas</span><span class="kval" id="kpi-venc" style="color:#dc3545;">—</span><span class="ksub">sin entregar</span><div class="kbar"><div class="kbar-fill" id="kb-venc" style="background:#dc3545;"></div></div></div>
-    <div class="kpi"><span class="klabel">Cumplimiento</span><span class="kval" id="kpi-cum">—</span><span class="ksub">a tiempo</span><div class="kbar"><div class="kbar-fill" id="kb-cum" style="background:var(--c1)"></div></div></div>
-    <div class="kpi"><span class="klabel">Días Prom.</span><span class="kval" id="kpi-dias">—</span><span class="ksub">ingreso→término</span></div>
-  </div>
-
-  <div class="chart-grid" style="margin-bottom:10px;">
-    <div class="chart-card"><h3>Descripción 2 × Cantidad</h3><div class="ch-wrap"><canvas id="ch-desc2"></canvas></div></div>
-    <div class="chart-card"><h3>Descripción 1 × Cantidad</h3><div class="ch-wrap"><canvas id="ch-desc1"></canvas></div></div>
-  </div>
-  <div class="chart-grid" style="margin-bottom:10px;">
-    <div class="chart-card"><h3>Cantidad por Mes</h3><div class="ch-wrap"><canvas id="ch-mes"></canvas></div></div>
-    <div class="chart-card"><h3>OF por Mes</h3><div class="ch-wrap"><canvas id="ch-of-mes"></canvas></div></div>
-  </div>
-  <div class="chart-grid g3">
-    <div class="chart-card"><h3>Cumplimiento de Entrega</h3><div class="ch-wrap donut"><canvas id="ch-cum"></canvas></div></div>
-    <div class="chart-card"><h3>MSTEEL de Órdenes</h3><div class="ch-wrap donut"><canvas id="ch-estado"></canvas></div></div>
-    <div class="chart-card"><h3>Top Clientes × Cantidad</h3><div class="ch-wrap"><canvas id="ch-cliente"></canvas></div></div>
-  </div>
-  <div class="chart-card" style="margin-top:10px;">
-    <h3>📊 Tabla Pareto — Descripción × Cantidad</h3>
-    <div id="pareto-table-wrap" style="overflow-x:auto;">
-      <table style="width:100%;border-collapse:collapse;font-size:12px;">
-        <thead>
-          <tr style="background:#f8fafc;border-bottom:1px solid var(--border);">
-            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);">#</th>
-            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);">Descripción</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text2);">Cantidad</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text2);">% del Total</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text2);">% Acumulado</th>
-            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text2);">Barra</th>
-          </tr>
-        </thead>
-        <tbody id="pareto-body">
-          <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text2);">Cargando datos…</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════ DATA PAGE ══════════ -->
-<div id="page-data" class="page">
-  <div class="data-toolbar">
-    <h2>Datos completos</h2>
-    <input id="data-search" type="text" placeholder="Buscar en cualquier columna…" oninput="renderDataTable()"/>
-    <button class="btn-primary" onclick="exportCSVData()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Exportar CSV
-    </button>
-  </div>
-  <div class="data-wrap">
-    <table class="dtbl">
-      <thead><tr>
-        <th onclick="sortData('fecha')">Fecha <span>↕</span></th>
-        <th onclick="sortData('sku')">SKU <span>↕</span></th>
-        <th onclick="sortData('descripcion1')">Desc 1 <span>↕</span></th>
-        <th onclick="sortData('descripcion2')">Desc 2 <span>↕</span></th>
-        <th onclick="sortData('cantidad')" style="text-align:right;">Cant. <span>↕</span></th>
-        <th onclick="sortData('oc_cliente')">OC Cliente <span>↕</span></th>
-        <th onclick="sortData('of_mch')">OF MCH <span>↕</span></th>
-        <th onclick="sortData('of_interna')">OF Interna <span>↕</span></th>
-        <th onclick="sortData('cliente')">Cliente <span>↕</span></th>
-        <th onclick="sortData('area')">Área <span>↕</span></th>
-        <th onclick="sortData('estado')">MSTEEL <span>↕</span></th>
-        <th onclick="sortData('fecha_entrega')">F. Entrega <span>↕</span></th>
-        <th onclick="sortData('fecha_ingreso')">F. Ingreso <span>↕</span></th>
-        <th onclick="sortData('fecha_termino')">F. Término <span>↕</span></th>
-        <th onclick="sortData('msteel')">Logística <span>↕</span></th>
-      </tr></thead>
-      <tbody id="data-body">
-        <tr><td colspan="15"><div class="empty-state"><p>Conecta Supabase para ver los datos</p></div></td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div id="data-footer"></div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
 <!-- ══════════ MARCA PAGE ══════════ -->
@@ -924,6 +823,8 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
   <div id="ppo-body" style="padding:16px 20px;flex:1;"></div>
 </div>
 <div id="panel-pletinas-overlay" onclick="cerrarPanelPletinas()" style="display:none;position:fixed;inset:0;z-index:7999;background:rgba(0,0,0,.3);"></div>
+
+</div><!-- /main-area -->
 <script>
 // ══════════════════════════════════════════════════════
 //  GLOBALS
@@ -959,9 +860,8 @@ function showPage(id, el) {
   document.getElementById('page-' + id).classList.add('active');
   el.classList.add('active');
   if (id === 'dashboard') { populateFilterOptions(); applyFilters(); }
-  if (id === 'data') renderDataTable();
+  if (id === 'data') { initBOMData(); renderBOMTable(); }
   if (id === 'pletinas') renderPletinasTable();
-  if (id === 'logistica') renderLogTable();
   if (id === 'marca') marcaInit();
   if (id === 'movimientos') loadMovimientos();
 }
@@ -2728,26 +2628,111 @@ function cerrarSesion() {
 
 function aplicarPermisos() {
   const rol = currentUser?.rol;
-
-  const navMov = document.getElementById('nav-movimientos');
-  if (navMov) navMov.style.display = (rol==='ADMIN') ? '' : 'none';
+  const navMov  = document.getElementById('nav-movimientos');
+  const navData = document.getElementById('nav-data');
+  if (navMov)  navMov.style.display  = (rol==='ADMIN') ? '' : 'none';
+  if (navData) navData.style.display = (rol==='ADMIN') ? '' : 'none';
 
   const puedeSubir = tienePermiso('subir');
-  ['upload-zone','upload-zone-log'].forEach(id=>{
-    const el = document.getElementById(id);
-    if (el) el.style.display = puedeSubir ? '' : 'none';
-  });
+  const upZone = document.getElementById('upload-zone');
+  if (upZone) upZone.style.display = puedeSubir ? '' : 'none';
 
   const badge = document.getElementById('user-badge');
   if (badge && currentUser) badge.textContent = `${currentUser.usuario} · ${rolLabel(rol)}`;
 
-  // Si un usuario sin permiso quedó parado en la página de Movimientos, lo regresamos a Órdenes
-  if (rol!=='ADMIN' && document.getElementById('page-movimientos')?.classList.contains('active')) {
+  const activeId = document.querySelector('.page.active')?.id;
+  if (rol!=='ADMIN' && (activeId==='page-data'||activeId==='page-movimientos')) {
     showPage('ordenes', document.querySelector('.nav-tab'));
   }
-
   renderOrdTable();
-  renderLogTable();
+}
+
+// ══════════════════════════════════════════════════════
+//  BOM EDITOR — módulo Data (solo Admin)
+// ══════════════════════════════════════════════════════
+let bomData = {};
+
+function initBOMData() {
+  bomData = {};
+  for (const [plano, plets] of Object.entries(BOM_FRAMES)) {
+    bomData[plano] = plets.map(x => ({...x}));
+  }
+}
+
+function renderBOMTable() {
+  if (!Object.keys(bomData).length) initBOMData();
+  const q = (document.getElementById('bom-search')?.value||'').toLowerCase().trim();
+  let keys = Object.keys(bomData).sort((a,b) => a.localeCompare(b,'es',{numeric:true}));
+  if (q) keys = keys.filter(k => k.toLowerCase().includes(q) || (bomData[k]||[]).some(p=>p.p&&p.p.toLowerCase().includes(q)));
+  const el = document.getElementById('count-label-data');
+  if (el) el.textContent = `— ${keys.length} frames`;
+  const tbody = document.getElementById('bom-body');
+  if (!tbody) return;
+  if (!keys.length) { tbody.innerHTML=`<tr><td colspan="12"><div class="empty-state"><p>Sin resultados</p></div></td></tr>`; return; }
+
+  tbody.innerHTML = keys.map(plano => {
+    const plets = bomData[plano] || [];
+    const celdas = Array.from({length:5}, (_,i) => {
+      const p = plets[i] || {p:'',lt:''};
+      return `
+        <td><input type="text" value="${esc(p.p)}" placeholder="ej. 20x3"
+          style="width:68px;border:1px solid var(--border);border-radius:5px;padding:3px 5px;font-size:11px;"
+          onchange="updateBOMCell('${esc(plano)}',${i},'p',this.value)"/></td>
+        <td><input type="number" value="${p.lt||''}" placeholder="mm"
+          style="width:60px;border:1px solid var(--border);border-radius:5px;padding:3px 5px;font-size:11px;"
+          onchange="updateBOMCell('${esc(plano)}',${i},'lt',this.value)"/></td>`;
+    }).join('');
+    return `<tr>
+      <td><input type="text" value="${esc(plano)}"
+        style="border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;font-weight:700;width:155px;"
+        onchange="renameBOMFrame('${esc(plano)}',this.value)"/></td>
+      ${celdas}
+      <td><button onclick="eliminarBOMFrame('${esc(plano)}')"
+        style="background:#fee2e2;color:#dc3545;border:none;border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;font-weight:700;">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateBOMCell(plano, idx, campo, valor) {
+  if (!bomData[plano]) return;
+  if (!bomData[plano][idx]) bomData[plano][idx] = {p:'',lt:0};
+  bomData[plano][idx][campo] = campo==='lt' ? (parseInt(valor)||0) : valor.trim();
+  BOM_FRAMES[plano] = bomData[plano].filter(x=>x.p);
+  toast('BOM actualizado','success');
+}
+
+function renameBOMFrame(oldPlano, newPlano) {
+  newPlano = newPlano.trim();
+  if (!newPlano || newPlano===oldPlano) return;
+  bomData[newPlano] = bomData[oldPlano]; delete bomData[oldPlano];
+  BOM_FRAMES[newPlano] = BOM_FRAMES[oldPlano]||[]; delete BOM_FRAMES[oldPlano];
+  renderBOMTable();
+}
+
+function eliminarBOMFrame(plano) {
+  if (!confirm(`¿Eliminar el frame "${plano}" del BOM?`)) return;
+  delete bomData[plano]; delete BOM_FRAMES[plano];
+  renderBOMTable();
+}
+
+function agregarFrameBOM() {
+  const plano = prompt('N° Plano (ej: MSF-MC-200-001):');
+  if (!plano?.trim()) return;
+  const key = plano.trim().toUpperCase();
+  if (bomData[key]) { toast('Ese plano ya existe','error'); return; }
+  bomData[key] = []; BOM_FRAMES[key] = [];
+  renderBOMTable(); toast(`✓ Frame ${key} agregado`,'success');
+}
+
+function exportCSVBOM() {
+  const entries = Object.entries(bomData).sort();
+  if (!entries.length) { toast('Sin datos','error'); return; }
+  const h = ['N° Plano','Pletina 1','LT 1','Pletina 2','LT 2','Pletina 3','LT 3','Pletina 4','LT 4','Pletina 5','LT 5'];
+  const rows = entries.map(([plano,plets]) => {
+    const cols=[plano]; for(let i=0;i<5;i++){cols.push(plets[i]?.p||'');cols.push(plets[i]?.lt||'');}
+    return cols.map(v=>`"${v}"`).join(',');
+  });
+  dlCSV([h.join(','),...rows].join('\n'),'bom_msteel.csv');
 }
 
 async function logMovimiento(modulo, accion, detalle) {
