@@ -552,18 +552,24 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
 
   <!-- Filtros superiores -->
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
-    <select id="dash-filter-area" onchange="applyFilters()" style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+    <select id="f-area" onchange="applyFilters()" style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
       <option value="">Todas las áreas</option>
     </select>
-    <select id="dash-filter-cliente" onchange="applyFilters()" style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+    <select id="f-cliente" onchange="applyFilters()" style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
       <option value="">Todos los clientes</option>
     </select>
-    <select id="dash-filter-estado" onchange="applyFilters()" style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+    <select id="f-estado" onchange="applyFilters()" style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
       <option value="">Todos los estados</option>
       <option>Pendiente</option><option>Parcial</option><option>Entregado</option>
     </select>
-    <input type="date" id="dash-from" onchange="applyFilters()" style="border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;"/>
-    <input type="date" id="dash-to"   onchange="applyFilters()" style="border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;"/>
+    <select id="f-año" onchange="applyFilters()" style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los años</option>
+    </select>
+    <select id="f-mes" onchange="applyFilters()" style="border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer;">
+      <option value="">Todos los meses</option>
+    </select>
+    <input type="date" id="f-desde" onchange="applyFilters()" style="border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;"/>
+    <input type="date" id="f-hasta" onchange="applyFilters()" style="border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;"/>
     <button onclick="resetDashFilters()" style="background:none;border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;cursor:pointer;color:var(--text2);">✕ Limpiar</button>
     <span id="dash-total" style="margin-left:auto;font-size:13px;font-weight:600;color:var(--text2);"></span>
   </div>
@@ -579,7 +585,7 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
     <div class="chart-card"><h3>OF por Mes</h3><div class="ch-wrap"><canvas id="ch-of-mes"></canvas></div></div>
   </div>
 
-  <!-- Gráficos 2×2 segunda fila -->
+  <!-- Gráficos segunda fila -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;">
     <div class="chart-card"><h3>MSTEEL de Órdenes</h3><div class="ch-wrap donut"><canvas id="ch-estado"></canvas></div></div>
     <div class="chart-card"><h3>Cumplimiento</h3><div class="ch-wrap donut"><canvas id="ch-cum"></canvas></div></div>
