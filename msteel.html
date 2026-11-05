@@ -477,8 +477,8 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
         </button>
       </div>
     </div>
-    <input type="file" id="pdf-input" accept="application/pdf" onchange="handleFiles([this.files[0]])"/>
-    <input type="file" id="pdf-input-bulk" accept="application/pdf" multiple onchange="handleFiles(Array.from(this.files))"/>
+    <input type="file" id="pdf-input" accept="application/pdf,.pdf" onchange="if(this.files[0]) handleFiles([this.files[0]]); this.value=''"/>
+    <input type="file" id="pdf-input-bulk" accept="application/pdf,.pdf" multiple onchange="if(this.files.length) handleFiles(Array.from(this.files)); this.value=''"/>
     <input type="file" id="excel-input" accept=".xlsx,.xls,.csv" onchange="handleExcel(this.files[0])"/>
   </div>
 
@@ -949,7 +949,7 @@ async function loadLogOrders() {
 function handleDrop(e) {
   e.preventDefault();
   document.getElementById('upload-zone').classList.remove('dragover');
-  const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
   if (!files.length) { toast('Solo se aceptan PDFs', 'error'); return; }
   handleFiles(files);
 }
@@ -1007,6 +1007,7 @@ async function processBulk(files) {
     sumEl.textContent=`${done}/${files.length} completados`;
     try {
       const rows = await extractRows(file, p => { pEl.style.width=(p*100)+'%'; });
+      if (!rows.length) throw new Error('Sin filas reconocidas');
       let saved=0, dupes=0;
       for (const r of rows) { const res = await saveOrder(r); res==='duplicate' ? dupes++ : saved++; }
       totalRows += saved; done++;
@@ -1031,11 +1032,30 @@ async function extractRows(file, onProgress) {
   for (let i=1; i<=pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    txt += content.items.map(it=>it.str).join(' ') + '\n';
+    txt += pdfPageToText(content) + '\n';
     onProgress(i/pdf.numPages);
   }
   return parseOrden(txt);
 }
+
+
+// Convierte el contenido de una página PDF en texto, agrupando por línea (posición Y)
+// y ordenando por X. Evita que el orden de lectura interno del PDF rompa el parser.
+function pdfPageToText(content) {
+  const items = content.items.filter(it => it.str && it.str.trim() !== '');
+  const lines = [];
+  for (const it of items) {
+    const y = it.transform[5], x = it.transform[4];
+    let ln = lines.find(l => Math.abs(l.y - y) < 3);
+    if (!ln) { ln = { y, parts: [] }; lines.push(ln); }
+    ln.parts.push({ x, s: it.str.trim() });
+  }
+  lines.sort((a,b) => b.y - a.y);
+  return lines.map(l => l.parts.sort((a,b) => a.x - b.x).map(p => p.s).join(' ')).join('\n');
+}
+
+// Regex tolerante (cantidad 1-7 dígitos, OF Interna con o sin guion)
+const PAT_FLEX = /(\d+)\s+(\d{2}[-\/]\d{2}[-\/]\d{4})\s+(\S+)\s+(\S+)\s+(\S+)\s+(\d{1,7})\s+(\S+)\s+(\S+)\s+(\d{8}-?\d*)\s+(.+?)\s*(?=\d+\s+\d{2}[-\/]\d{2}[-\/]\d{4}|Solicitado\b|$)/g;
 
 function parseOrden(text) {
   const rows = [];
@@ -1073,6 +1093,14 @@ function parseOrden(text) {
       rows.push(mkRow(bm[1],bm[2],bm[3],bm[4],bm[5],bm[6],bm[7],bm[8],bm[9],cliente,area));
     }
   }
+  if (!rows.length) {
+    let m2; PAT_FLEX.lastIndex = 0;
+    while ((m2=PAT_FLEX.exec(full))!==null) {
+      const { cliente, area } = splitClienteArea(m2[10]);
+      rows.push(mkRow(m2[1],m2[2].replace(/\//g,'-'),m2[3],m2[4],m2[5],m2[6],m2[7],m2[8],m2[9],cliente,area));
+    }
+  }
+  if (!rows.length) console.warn('PDF sin filas reconocidas. Texto extraído:', full.slice(0,1500));
   return rows;
 }
 
@@ -1392,7 +1420,7 @@ function setFilter(val, el) {
 function handleDropLog(e) {
   e.preventDefault();
   document.getElementById('upload-zone-log').classList.remove('dragover');
-  const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
   if (!files.length) { toast('Solo se aceptan PDFs', 'error'); return; }
   handleFilesLog(files);
 }
@@ -1450,6 +1478,7 @@ async function processBulkLog(files) {
     sumEl.textContent=`${done}/${files.length} completados`;
     try {
       const rows = await extractRowsLog(file, p => { pEl.style.width=(p*100)+'%'; });
+      if (!rows.length) throw new Error('Sin filas reconocidas');
       let saved=0, dupes=0;
       for (const r of rows) { const res = await saveOrderLog(r); res==='duplicate' ? dupes++ : saved++; }
       totalRows += saved; done++;
@@ -1474,7 +1503,7 @@ async function extractRowsLog(file, onProgress) {
   for (let i=1; i<=pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    txt += content.items.map(it=>it.str).join(' ') + '\n';
+    txt += pdfPageToText(content) + '\n';
     onProgress(i/pdf.numPages);
   }
   return parseOrdenLog(txt);
@@ -1507,6 +1536,14 @@ function parseOrdenLog(text) {
       rows.push(mkRowLog(bm[1],bm[2],bm[3],bm[4],bm[5],bm[6],bm[7],bm[8],bm[9],cliente,area));
     }
   }
+  if (!rows.length) {
+    let m2; PAT_FLEX.lastIndex = 0;
+    while ((m2=PAT_FLEX.exec(full))!==null) {
+      const { cliente, area } = splitClienteArea(m2[10]);
+      rows.push(mkRowLog(m2[1],m2[2].replace(/\//g,'-'),m2[3],m2[4],m2[5],m2[6],m2[7],m2[8],m2[9],cliente,area));
+    }
+  }
+  if (!rows.length) console.warn('PDF sin filas reconocidas. Texto extraído:', full.slice(0,1500));
   return rows;
 }
 
