@@ -1035,7 +1035,7 @@ async function extractRows(file, onProgress) {
     txt += pdfPageToText(content) + '\n';
     onProgress(i/pdf.numPages);
   }
-  return parseOrden(txt);
+  return fixOfInterna(parseOrden(txt), file);
 }
 
 
@@ -1055,7 +1055,15 @@ function pdfPageToText(content) {
 }
 
 // Regex tolerante (cantidad 1-7 dígitos, OF Interna con o sin guion)
-const PAT_FLEX = /(\d+)\s+(\d{2}[-\/]\d{2}[-\/]\d{4})\s+(\S+)\s+(\S+)\s+(\S+)\s+(\d{1,7})\s+(\S+)\s+(\S+)\s+(\d{8}-?\d*)\s+(.+?)\s*(?=\d+\s+\d{2}[-\/]\d{2}[-\/]\d{4}|Solicitado\b|$)/g;
+const PAT_FLEX = /(\d+)\s+(\d{2}[-\/]\d{2}[-\/]\d{4})\s+(\S+)\s+(\S+)\s+(\S+)\s+(\d{1,7})\s+(\S+)\s+(.+?)\s+(\d+(?:-\d+)?)\s+(.+?)\s*(?=\d+\s+\d{2}[-\/]\d{2}[-\/]\d{4}|Solicitado\b|$)/g;
+
+// Si la OF Interna del PDF viene incompleta (ej. "202"), usa la del nombre del archivo (AAAAMMDD-N)
+function fixOfInterna(rows, file) {
+  const fm = file && file.name ? file.name.match(/(\d{8}-\d+)/) : null;
+  if (!fm) return rows;
+  rows.forEach(r => { if (!/^\d{8}-\d+$/.test(r.of_interna)) r.of_interna = fm[1]; });
+  return rows;
+}
 
 function parseOrden(text) {
   const rows = [];
@@ -1506,7 +1514,7 @@ async function extractRowsLog(file, onProgress) {
     txt += pdfPageToText(content) + '\n';
     onProgress(i/pdf.numPages);
   }
-  return parseOrdenLog(txt);
+  return fixOfInterna(parseOrdenLog(txt), file);
 }
 
 function parseOrdenLog(text) {
