@@ -365,6 +365,10 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
     <button class="nav-tab active" onclick="showPage('ordenes',this)">📋 Órdenes <span id="alert-badge" style="display:none;background:#dc3545;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"></span></button>
     <button class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</button>
     <button class="nav-tab" onclick="showPage('pletinas',this)">🔩 Pletinas</button>
+    <button class="nav-tab" onclick="showPage('planificacion',this)">📅 Planificación</button>
+    <button class="nav-tab" onclick="showPage('ordenes_trabajo',this)">🛠 Órdenes de Trabajo</button>
+    <button class="nav-tab" onclick="showPage('gantt',this)">📈 Carta Gantt</button>
+    <button class="nav-tab" onclick="showPage('control_horas',this)">⏱ Control de Horas</button>
     <button class="nav-tab" onclick="showPage('marca',this)">🏷 Marca</button>
     <button class="nav-tab" id="nav-data" style="display:none;" onclick="showPage('data',this)">🗄 BOM / Data</button>
     <button class="nav-tab" id="nav-movimientos" style="display:none;" onclick="showPage('movimientos',this)">🛡 Movimientos</button>
@@ -515,7 +519,7 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
     <button class="filter-pill" onclick="setFilter('Entregado',this)">Entregado</button>
     <button class="btn-primary" onclick="exportCSVOrd()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Exportar CSV
+      Exportar Excel
     </button>
   </div>
 
@@ -646,7 +650,7 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
     </button>
     <button class="btn-primary" onclick="exportCSVPletinas()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Exportar CSV
+      Exportar Excel
     </button>
   </div>
 
@@ -717,6 +721,11 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
 
 
 <!-- ══════════ DATA / BOM PAGE (solo Admin) ══════════ -->
+<div id="page-planificacion" class="page"></div>
+<div id="page-ordenes_trabajo" class="page"></div>
+<div id="page-gantt" class="page"></div>
+<div id="page-control_horas" class="page"></div>
+
 <div id="page-data" class="page">
   <div class="ord-toolbar" style="flex-wrap:wrap;gap:8px;">
     <h2>🗄 BOM / Data <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label-data"></span></h2>
@@ -725,7 +734,7 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
     <button class="btn-primary" onclick="agregarFrameBOM()" style="background:#0F6E56;">＋ Nuevo Frame</button>
     <button class="btn-primary" onclick="exportCSVBOM()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Exportar CSV
+      Exportar Excel
     </button>
   </div>
   <div class="table-wrap">
@@ -890,6 +899,8 @@ function showPage(id, el) {
   if (id === 'dashboard') { populateFilterOptions(); applyFilters(); }
   if (id === 'data') { initBOMData(); renderBOMTable(); }
   if (id === 'pletinas') renderPletinasTable();
+  if (['planificacion','ordenes_trabajo','control_horas'].includes(id)) modShow(id);
+  if (id === 'gantt') ganttShow();
   if (id === 'marca') marcaInit();
   if (id === 'movimientos') loadMovimientos();
 }
@@ -1715,8 +1726,8 @@ function setFilterLog(val, el) {
 function exportCSVLog() {
   if (!logOrders.length) { toast('Sin datos','error'); return; }
   const h=['#','Fecha','SKU','Desc1','Desc2','Cantidad','OC Cliente','OF MCH','OF Interna','Cliente','Área','Estado','Comentarios'];
-  const rows=logOrders.map((o,i)=>[i+1,fmt(o.fecha),o.sku,o.descripcion1,o.descripcion2,o.cantidad,o.oc_cliente,o.of_mch,o.of_interna,o.cliente,o.area,o.estado,o.comentarios||''].map(v=>`"${v}"`).join(','));
-  dlCSV([h.join(','),...rows].join('\n'),'of_logistica_msteel.csv');
+  const rows=logOrders.map((o,i)=>[i+1,fmt(o.fecha),o.sku,o.descripcion1,o.descripcion2,o.cantidad,o.oc_cliente,o.of_mch,o.of_interna,o.cliente,o.area,o.estado,o.comentarios||'']);
+  dlXLSX(h,rows,'of_logistica_msteel.xlsx','Datos');
 }
 
 async function handleExcelLog(file) {
@@ -2240,8 +2251,8 @@ function renderDataTable() {
 function exportCSVOrd() {
   if (!orders.length) { toast('Sin datos','error'); return; }
   const h=['#','Fecha','SKU','Desc1','Desc2','Cantidad','OC Cliente','OF MCH','OF Interna','Cliente','Área','MSTEEL','F.Entrega','F.Ingreso','F.Término','Logística'];
-  const rows=orders.map((o,i)=>[i+1,fmt(o.fecha),o.sku,o.descripcion1,o.descripcion2,o.cantidad,o.oc_cliente,o.of_mch,o.of_interna,o.cliente,o.area,o.estado,fmt(o.fecha_entrega),fmt(o.fecha_ingreso),fmt(o.fecha_termino),o.msteel||'Pendiente'].map(v=>`"${v}"`).join(','));
-  dlCSV([h.join(','),...rows].join('\n'),'ordenes_msteel.csv');
+  const rows=orders.map((o,i)=>[i+1,fmt(o.fecha),o.sku,o.descripcion1,o.descripcion2,o.cantidad,o.oc_cliente,o.of_mch,o.of_interna,o.cliente,o.area,o.estado,fmt(o.fecha_entrega),fmt(o.fecha_ingreso),fmt(o.fecha_termino),o.msteel||'Pendiente']);
+  dlXLSX(h,rows,'ordenes_msteel.xlsx','Datos');
 }
 
 function exportCSVData() {
@@ -2827,9 +2838,9 @@ function exportCSVBOM() {
   const h = ['N° Plano','Pletina 1','LT 1','Pletina 2','LT 2','Pletina 3','LT 3','Pletina 4','LT 4','Pletina 5','LT 5'];
   const rows = entries.map(([plano,plets]) => {
     const cols=[plano]; for(let i=0;i<5;i++){cols.push(plets[i]?.p||'');cols.push(plets[i]?.lt||'');}
-    return cols.map(v=>`"${v}"`).join(',');
+    return cols;
   });
-  dlCSV([h.join(','),...rows].join('\n'),'bom_msteel.csv');
+  dlXLSX(h,rows,'bom_msteel.xlsx','Datos');
 }
 
 async function logMovimiento(modulo, accion, detalle) {
@@ -3308,8 +3319,8 @@ async function confirmarElimPletina(id) {
 function exportCSVPletinas() {
   if (!pletinas.length) { toast('Sin datos','error'); return; }
   const h = ['SKU','Tipo','Nombre','Descripción 1','Descripción 2','Stock'];
-  const rows = pletinas.map(p=>[p.sku,p.tipo,p.nombre,p.descripcion1,p.descripcion2,p.stock||0].map(v=>`"${v||''}"`).join(','));
-  dlCSV([h.join(','),...rows].join('\n'),'pletinas_msteel.csv');
+  const rows = pletinas.map(p=>[p.sku,p.tipo,p.nombre,p.descripcion1,p.descripcion2,p.stock||0]);
+  dlXLSX(h,rows,'pletinas_msteel.xlsx','Datos');
 }
 
 // ══════════════════════════════════════════════════════
@@ -3670,6 +3681,275 @@ async function printMarca() {
   w.document.close();
   w.focus();
   setTimeout(() => { w.print(); }, 800);
+}
+
+// ══════════════════════════════════════════════════════
+//  NUEVOS MÓDULOS: PLANIFICACIÓN · OT · GANTT · CONTROL DE HORAS
+// ══════════════════════════════════════════════════════
+const ESTADO_COL = {'Pendiente':'#94a3b8','En curso':'#2563eb','Terminada':'#16a34a','Pausada':'#d97706','Emitida':'#0ea5e9','En proceso':'#2563eb','Anulada':'#dc2626'};
+const MODS = {
+  planificacion: { table:'planificacion', icon:'📅', title:'Planificación', file:'planificacion_msteel', df:'fecha_inicio',
+    fields:[
+      {k:'of_interna',l:'OF Interna',t:'of'},{k:'sku',l:'SKU'},{k:'cliente',l:'Cliente'},{k:'descripcion',l:'Descripción'},
+      {k:'cantidad',l:'Cantidad',t:'number'},{k:'area',l:'Área'},{k:'responsable',l:'Responsable',t:'operario'},
+      {k:'prioridad',l:'Prioridad',t:'select',o:['Alta','Media','Baja'],d:'Media'},
+      {k:'fecha_inicio',l:'Inicio',t:'date',req:1},{k:'fecha_fin',l:'Término',t:'date',req:1},
+      {k:'avance',l:'Avance %',t:'number',d:0},
+      {k:'estado',l:'Estado',t:'select',o:['Pendiente','En curso','Pausada','Terminada'],d:'Pendiente'},
+      {k:'notas',l:'Notas',t:'textarea',nolist:1}] },
+  ordenes_trabajo: { table:'ordenes_trabajo', icon:'🛠', title:'Órdenes de Trabajo', file:'ordenes_trabajo_msteel', df:'fecha_emision',
+    fields:[
+      {k:'ot_numero',l:'N° OT',req:1},{k:'of_interna',l:'OF Interna',t:'of'},{k:'sku',l:'SKU'},{k:'descripcion',l:'Descripción'},
+      {k:'cantidad',l:'Cantidad',t:'number'},{k:'cliente',l:'Cliente'},{k:'operario',l:'Operario',t:'operario'},{k:'maquina',l:'Máquina / Puesto'},
+      {k:'fecha_emision',l:'F. Emisión',t:'date',d:'hoy'},{k:'fecha_entrega',l:'F. Entrega',t:'date'},
+      {k:'estado',l:'Estado',t:'select',o:['Emitida','En proceso','Terminada','Anulada'],d:'Emitida'},
+      {k:'observaciones',l:'Observaciones',t:'textarea',nolist:1}] },
+  control_horas: { table:'control_horas', icon:'⏱', title:'Control de Horas Efectivas', file:'control_horas_msteel', df:'fecha',
+    fields:[
+      {k:'fecha',l:'Fecha',t:'date',req:1,d:'hoy'},{k:'operario',l:'Operario',t:'operario',req:1},{k:'ot_numero',l:'N° OT'},
+      {k:'actividad',l:'Actividad'},{k:'hora_inicio',l:'Hora inicio',t:'time',req:1},{k:'hora_fin',l:'Hora fin',t:'time',req:1},
+      {k:'horas_paradas',l:'Horas paradas',t:'number',d:0},{k:'motivo_parada',l:'Motivo parada'},
+      {k:'horas_efectivas',l:'Horas efectivas',t:'number',ro:1},
+      {k:'observaciones',l:'Observaciones',t:'textarea',nolist:1}] }
+};
+const modData = { planificacion:[], ordenes_trabajo:[], control_horas:[] };
+const modRows = {};   // filas visibles (filtradas) por módulo, para exportar
+let modEdit = null;
+const _d   = s => { const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); };
+const _iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const ea   = s => String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+function calcHoras(ini,fin,par){
+  if(!ini||!fin) return 0;
+  const [a,b]=ini.split(':').map(Number),[c,d]=fin.split(':').map(Number);
+  let min=(c*60+d)-(a*60+b); if(min<0) min+=1440;
+  return Math.max(0, Math.round((min/60-(+par||0))*100)/100);
+}
+
+// ---- Excel real (cada encabezado en su propia columna) ----
+function dlXLSX(h, rows, name, sheet, extra) {
+  const wb = XLSX.utils.book_new();
+  [{h,rows,sheet:sheet||'Datos'}].concat(extra||[]).forEach(s => {
+    const ws = XLSX.utils.aoa_to_sheet([s.h, ...s.rows]);
+    ws['!cols'] = s.h.map((t,i) => ({ wch: Math.min(40, Math.max(String(t).length, ...s.rows.slice(0,200).map(r => String(r[i]??'').length)) + 2) }));
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:s.rows.length, c:s.h.length-1}}) };
+    XLSX.utils.book_append_sheet(wb, ws, s.sheet.slice(0,31));
+  });
+  XLSX.writeFile(wb, name);
+  toast('Excel descargado','success');
+}
+
+// ---- Carga / navegación ----
+async function modLoad(key) {
+  if (!sbClient) { toast('Conecta Supabase primero','error'); return; }
+  const { data, error } = await sbClient.from(MODS[key].table).select('*').order('created_at',{ascending:false});
+  if (error) { toast('Error: '+error.message+' (¿ejecutaste el SQL de tablas nuevas?)','error'); return; }
+  modData[key] = data || [];
+}
+async function modShow(key) {
+  const m = MODS[key], pg = document.getElementById('page-'+key);
+  if (!pg.dataset.init) {
+    pg.dataset.init = 1;
+    const inp = 'border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;outline:none;';
+    pg.innerHTML = `
+      <div class="ord-toolbar" style="flex-wrap:wrap;gap:8px;">
+        <h2>${m.icon} ${m.title} <span id="cnt-${key}" style="font-size:12px;font-weight:400;color:var(--text2);"></span></h2>
+        <input id="q-${key}" placeholder="🔍 Buscar…" oninput="modRender('${key}')" style="${inp}width:180px;"/>
+        <label style="font-size:11px;color:var(--text2);">Desde <input type="date" id="d1-${key}" onchange="modRender('${key}')" style="${inp}"/></label>
+        <label style="font-size:11px;color:var(--text2);">Hasta <input type="date" id="d2-${key}" onchange="modRender('${key}')" style="${inp}"/></label>
+        ${key==='control_horas'?`<input id="op-${key}" list="dl-operarios" placeholder="Operario" oninput="modRender('${key}')" style="${inp}width:130px;"/>`:''}
+        <button class="btn-primary" onclick="modOpen('${key}')" style="background:#0F6E56;" data-edit>＋ Nuevo</button>
+        <button class="btn-primary" onclick="modExport('${key}')">⬇ Exportar Excel</button>
+      </div>
+      ${key==='control_horas'?'<div id="sum-control_horas" style="margin-bottom:1rem;"></div>':''}
+      <div class="table-wrap"><table class="ord-tbl"><thead><tr>
+        ${m.fields.filter(f=>!f.nolist).map(f=>`<th>${f.l}</th>`).join('')}<th>Acciones</th></tr></thead>
+        <tbody id="body-${key}"></tbody></table></div>`;
+  }
+  await modLoad(key);
+  modRender(key);
+}
+function modCell(f, v) {
+  if (v===null||v===undefined||v==='') return '—';
+  if (f.t==='date') return fmt(v);
+  if (f.t==='time') return String(v).slice(0,5);
+  if (f.k==='avance') return `<div style="min-width:70px;background:#e2e8f0;border-radius:6px;overflow:hidden;position:relative;height:16px;"><div style="width:${Math.min(100,+v)}%;background:#1D9E75;height:100%;"></div><span style="position:absolute;inset:0;text-align:center;font-size:10px;line-height:16px;font-weight:700;">${v}%</span></div>`;
+  if (f.k==='estado') return `<span style="background:${ESTADO_COL[v]||'#94a3b8'};color:#fff;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600;">${esc(v)}</span>`;
+  if (f.k==='prioridad') return `<b style="color:${v==='Alta'?'#dc2626':v==='Media'?'#d97706':'#64748b'}">${esc(v)}</b>`;
+  return esc(v);
+}
+function modRender(key) {
+  const m = MODS[key], q = (document.getElementById('q-'+key).value||'').toLowerCase();
+  const d1 = document.getElementById('d1-'+key).value, d2 = document.getElementById('d2-'+key).value;
+  const op = (document.getElementById('op-'+key)||{}).value?.toLowerCase();
+  let rows = modData[key].filter(r =>
+    (!q || m.fields.some(f => String(r[f.k]??'').toLowerCase().includes(q))) &&
+    (!d1 || (r[m.df]||'') >= d1) && (!d2 || (r[m.df]||'') <= d2) &&
+    (!op || String(r.operario||'').toLowerCase().includes(op)));
+  rows.sort((a,b) => String(b[m.df]||'').localeCompare(String(a[m.df]||'')));
+  modRows[key] = rows;
+  document.getElementById('cnt-'+key).textContent = `(${rows.length})`;
+  const cols = m.fields.filter(f=>!f.nolist), ce = tienePermiso('subir'), cd = tienePermiso('eliminar');
+  document.getElementById('body-'+key).innerHTML = rows.length ? rows.map(r => `<tr>
+    ${cols.map(f=>`<td>${modCell(f,r[f.k])}</td>`).join('')}
+    <td style="white-space:nowrap;">${ce?`<button onclick="modOpen('${key}','${r.id}')" title="Editar" style="border:none;background:none;cursor:pointer;">✏️</button>`:''}${cd?`<button onclick="modDel('${key}','${r.id}')" title="Eliminar" style="border:none;background:none;cursor:pointer;">🗑</button>`:''}</td></tr>`).join('')
+    : `<tr><td colspan="${cols.length+1}"><div class="empty-state"><p>Sin registros</p></div></td></tr>`;
+  document.querySelectorAll(`#page-${key} [data-edit]`).forEach(b => b.style.display = ce ? '' : 'none');
+  if (key==='control_horas') horasResumen(rows);
+}
+function horasResumen(rows) {
+  const g = {};
+  rows.forEach(r => { const o = r.operario||'(sin nombre)'; g[o] = g[o]||{n:0,ef:0,pa:0}; g[o].n++; g[o].ef += +r.horas_efectivas||0; g[o].pa += +r.horas_paradas||0; });
+  const list = Object.entries(g).sort((a,b)=>b[1].ef-a[1].ef);
+  window._horasResumen = list.map(([o,v]) => [o, v.n, +v.ef.toFixed(2), +v.pa.toFixed(2), (v.ef+v.pa)?+(v.ef/(v.ef+v.pa)*100).toFixed(1):0]);
+  document.getElementById('sum-control_horas').innerHTML = list.length ? `<div class="table-wrap"><table class="ord-tbl"><thead><tr><th>Operario</th><th>Registros</th><th>Horas efectivas</th><th>Horas paradas</th><th>% Efectividad</th></tr></thead><tbody>
+    ${window._horasResumen.map(r=>`<tr><td><b>${esc(r[0])}</b></td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td><div style="background:#e2e8f0;border-radius:6px;height:16px;position:relative;min-width:100px;"><div style="width:${r[4]}%;background:${r[4]>=80?'#16a34a':r[4]>=60?'#d97706':'#dc2626'};height:100%;border-radius:6px;"></div><span style="position:absolute;inset:0;text-align:center;font-size:10px;line-height:16px;font-weight:700;">${r[4]}%</span></div></td></tr>`).join('')}
+    </tbody></table></div>` : '';
+}
+
+// ---- Formulario (modal) ----
+function modOpen(key, id) {
+  if (!tienePermiso('subir')) { toast('Sin permiso para editar','error'); return; }
+  const m = MODS[key], rec = id ? modData[key].find(r => String(r.id)===String(id)) : null;
+  modEdit = { key, id: id||null };
+  const hoy = _iso(new Date());
+  const ops = [...new Set([...modData.control_horas, ...modData.ordenes_trabajo].map(r=>r.operario).filter(Boolean))];
+  const ofs = [...new Set((typeof orders!=='undefined'?orders:[]).map(o=>o.of_interna).filter(Boolean))];
+  const fld = f => {
+    let v = rec ? rec[f.k] : (f.d==='hoy' ? hoy : f.d);
+    if (key==='ordenes_trabajo' && f.k==='ot_numero' && !rec) v = 'OT-'+String(modData[key].length+1).padStart(4,'0');
+    v = v ?? ''; if (f.t==='time') v = String(v).slice(0,5);
+    const st = 'width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:13px;';
+    let inp;
+    if (f.t==='select') inp = `<select id="mf-${f.k}" style="${st}">${f.o.map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select>`;
+    else if (f.t==='textarea') inp = `<textarea id="mf-${f.k}" rows="2" style="${st}">${esc(v)}</textarea>`;
+    else if (f.t==='of') inp = `<input id="mf-${f.k}" list="dl-of" value="${ea(v)}" onchange="modAutofill(this.value)" style="${st}"/>`;
+    else if (f.t==='operario') inp = `<input id="mf-${f.k}" list="dl-operarios" value="${ea(v)}" style="${st}"/>`;
+    else inp = `<input id="mf-${f.k}" type="${f.t||'text'}" ${f.t==='number'?'step="any"':''} ${f.ro?'readonly placeholder="(automático)"':''} value="${ea(v)}" style="${st}${f.ro?'background:#f1f5f9;':''}"/>`;
+    return `<label style="font-size:11px;font-weight:600;color:var(--text2);${f.t==='textarea'?'grid-column:1/-1;':''}">${f.l}${f.req?' *':''}${inp}</label>`;
+  };
+  let ov = document.getElementById('mod-ov');
+  if (!ov) { ov = document.createElement('div'); ov.id='mod-ov'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div style="background:#fff;border-radius:12px;padding:1.2rem 1.4rem;width:min(640px,100%);max-height:92vh;overflow:auto;">
+    <h3 style="margin-bottom:12px;">${m.icon} ${id?'Editar':'Nuevo'} — ${m.title}</h3>
+    <datalist id="dl-of">${ofs.map(o=>`<option value="${ea(o)}">`).join('')}</datalist>
+    <datalist id="dl-operarios">${ops.map(o=>`<option value="${ea(o)}">`).join('')}</datalist>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${m.fields.map(fld).join('')}</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button class="btn-primary" style="background:#94a3b8;" onclick="modClose()">Cancelar</button>
+      <button class="btn-primary" onclick="modSave()">Guardar</button></div></div>`;
+  ov.style.display = 'flex';
+}
+function modClose() { const ov = document.getElementById('mod-ov'); if (ov) ov.style.display='none'; modEdit = null; }
+function modAutofill(v) {
+  const o = (typeof orders!=='undefined'?orders:[]).find(x => x.of_interna===v); if (!o) return;
+  const set = (k,val) => { const e = document.getElementById('mf-'+k); if (e && !e.value) e.value = val ?? ''; };
+  set('sku',o.sku); set('cliente',o.cliente); set('area',o.area); set('cantidad',o.cantidad);
+  set('descripcion',[o.descripcion1,o.descripcion2].filter(Boolean).join(' '));
+}
+async function modSave() {
+  const { key, id } = modEdit, m = MODS[key], row = {};
+  for (const f of m.fields) {
+    if (f.ro) continue;
+    let v = document.getElementById('mf-'+f.k).value.trim();
+    if (f.req && !v) { toast('Falta: '+f.l,'error'); return; }
+    row[f.k] = v==='' ? null : (f.t==='number' ? +v : v);
+  }
+  if (key==='planificacion' && row.fecha_fin < row.fecha_inicio) { toast('El término no puede ser anterior al inicio','error'); return; }
+  if (key==='planificacion') { row.avance = Math.max(0,Math.min(100,row.avance||0)); if (row.avance>=100) row.estado='Terminada'; }
+  if (key==='control_horas') row.horas_efectivas = calcHoras(row.hora_inicio,row.hora_fin,row.horas_paradas);
+  const q = id ? sbClient.from(m.table).update(row).eq('id',id) : sbClient.from(m.table).insert([row]);
+  const { error } = await q;
+  if (error) { toast('Error: '+error.message,'error'); return; }
+  logMovimiento(m.title, id?'Editar':'Crear', JSON.stringify(row).slice(0,200));
+  modClose(); toast('✓ Guardado','success');
+  await modLoad(key);
+  if (key==='planificacion' && document.getElementById('page-gantt').classList.contains('active')) ganttRender();
+  else modRender(key);
+}
+async function modDel(key, id) {
+  if (!tienePermiso('eliminar')) { toast('Sin permiso','error'); return; }
+  if (!confirm('¿Eliminar este registro?')) return;
+  const { error } = await sbClient.from(MODS[key].table).delete().eq('id',id);
+  if (error) { toast('Error: '+error.message,'error'); return; }
+  logMovimiento(MODS[key].title,'Eliminar','id '+id);
+  await modLoad(key); modRender(key); toast('Eliminado','success');
+}
+function modExport(key) {
+  const m = MODS[key], rows = modRows[key] || [];
+  if (!rows.length) { toast('Sin datos','error'); return; }
+  const h = m.fields.map(f=>f.l);
+  const data = rows.map(r => m.fields.map(f => f.t==='date' ? fmt(r[f.k]).replace('—','') : f.t==='time' ? String(r[f.k]||'').slice(0,5) : (r[f.k]??'')));
+  const extra = key==='control_horas' && window._horasResumen ? [{ sheet:'Resumen operarios', h:['Operario','Registros','Horas efectivas','Horas paradas','% Efectividad'], rows:window._horasResumen }] : [];
+  dlXLSX(h, data, m.file+'.xlsx', m.title, extra);
+}
+
+// ---- Carta Gantt (usa los datos de Planificación) ----
+async function ganttShow() {
+  const pg = document.getElementById('page-gantt');
+  if (!pg.dataset.init) {
+    pg.dataset.init = 1;
+    const inp = 'border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;outline:none;';
+    pg.innerHTML = `<div class="ord-toolbar" style="flex-wrap:wrap;gap:8px;"><h2>📈 Carta Gantt</h2>
+      <label style="font-size:11px;color:var(--text2);">Desde <input type="date" id="g-ini" onchange="ganttRender()" style="${inp}"/></label>
+      <select id="g-dias" onchange="ganttRender()" style="${inp}"><option value="30">30 días</option><option value="60" selected>60 días</option><option value="90">90 días</option><option value="120">120 días</option></select>
+      <select id="g-est" onchange="ganttRender()" style="${inp}"><option value="">Todos los estados</option><option>Pendiente</option><option>En curso</option><option>Pausada</option><option>Terminada</option></select>
+      <button class="btn-primary" onclick="ganttExport()">⬇ Exportar Excel</button></div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Las barras salen de la hoja <b>Planificación</b>. Verde oscuro = avance. <span style="color:#dc2626;font-weight:700;">Rojo = atrasada</span>. Clic en una barra para editarla.</div>
+      <div id="g-box" class="table-wrap" style="padding:0;"></div>`;
+  }
+  await modLoad('planificacion');
+  if (!document.getElementById('g-ini').value) {
+    const ds = modData.planificacion.map(r=>r.fecha_inicio).filter(Boolean).sort();
+    const base = ds.length ? _d(ds[0]) : new Date(); base.setDate(base.getDate()-2);
+    document.getElementById('g-ini').value = _iso(base);
+  }
+  ganttRender();
+}
+function ganttRows() {
+  const est = document.getElementById('g-est').value;
+  return modData.planificacion.filter(r => r.fecha_inicio && r.fecha_fin && (!est || r.estado===est))
+    .sort((a,b) => a.fecha_inicio.localeCompare(b.fecha_inicio));
+}
+function ganttBarColor(r) {
+  return (r.fecha_fin < _iso(new Date()) && r.estado!=='Terminada' && (+r.avance||0)<100) ? '#dc2626' : (ESTADO_COL[r.estado]||'#94a3b8');
+}
+function ganttRender() {
+  const W = 28, n = +document.getElementById('g-dias').value, ini = _d(document.getElementById('g-ini').value), rows = ganttRows();
+  const days = Array.from({length:n}, (_,i) => { const d = new Date(ini); d.setDate(d.getDate()+i); return d; });
+  const MES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  let meses = '', cur = -1, cnt = 0;
+  days.forEach((d,i) => { if (d.getMonth()!==cur) { if (cnt) meses += `<div style="width:${cnt*W}px;flex:none;border-right:1px solid #cbd5e1;padding-left:4px;">${MES[cur]}</div>`; cur=d.getMonth(); cnt=0; } cnt++; });
+  meses += `<div style="width:${cnt*W}px;flex:none;padding-left:4px;">${MES[cur]}</div>`;
+  const dd = days.map(d => `<div style="width:${W}px;flex:none;text-align:center;font-size:10px;padding:2px 0;${[0,6].includes(d.getDay())?'background:#f1f5f9;color:#94a3b8;':''}">${d.getDate()}</div>`).join('');
+  const hoyX = Math.round((_d(_iso(new Date())) - ini)/864e5);
+  const left = 'flex:0 0 250px;position:sticky;left:0;background:#fff;z-index:3;border-right:1px solid #cbd5e1;padding:4px 8px;font-size:11px;overflow:hidden;';
+  const grid = `background:repeating-linear-gradient(to right,#eef2f7 0,#eef2f7 1px,transparent 1px,transparent ${W}px);`;
+  const body = rows.map(r => {
+    const s = Math.round((_d(r.fecha_inicio)-ini)/864e5), e = Math.round((_d(r.fecha_fin)-ini)/864e5);
+    const x = s*W, w = Math.max(W, (e-s+1)*W), av = Math.max(0,Math.min(100,+r.avance||0));
+    return `<div style="display:flex;border-bottom:1px solid #eef2f7;height:34px;">
+      <div style="${left}"><b>${esc(r.of_interna||'—')}</b> <span style="color:#64748b;">${esc(r.descripcion||r.sku||'')}</span><br><span style="color:#94a3b8;">${fmt(r.fecha_inicio)} → ${fmt(r.fecha_fin)} · ${av}%</span></div>
+      <div style="position:relative;flex:none;width:${n*W}px;${grid}">
+        <div onclick="modOpen('planificacion','${r.id}')" title="${ea((r.descripcion||'')+' · '+r.estado+' · '+av+'%')}" style="position:absolute;top:7px;height:20px;left:${x}px;width:${w}px;background:${ganttBarColor(r)};opacity:.85;border-radius:5px;cursor:pointer;overflow:hidden;">
+          <div style="width:${av}%;height:100%;background:rgba(0,0,0,.28);"></div></div></div></div>`;
+  }).join('');
+  document.getElementById('g-box').innerHTML = rows.length ? `<div style="overflow-x:auto;"><div style="min-width:${250+n*W}px;position:relative;">
+    <div style="display:flex;position:sticky;top:0;z-index:4;background:#fff;border-bottom:1px solid #cbd5e1;"><div style="${left}z-index:5;"></div><div><div style="display:flex;font-size:11px;font-weight:700;">${meses}</div><div style="display:flex;">${dd}</div></div></div>
+    ${body}
+    ${hoyX>=0&&hoyX<n?`<div style="position:absolute;top:0;bottom:0;left:${250+hoyX*W+W/2}px;width:2px;background:#dc2626;opacity:.5;z-index:2;pointer-events:none;"></div>`:''}
+    </div></div>` : '<div class="empty-state"><p>Sin tareas planificadas</p><small>Crea registros en la hoja Planificación (con fecha de inicio y término)</small></div>';
+}
+function ganttExport() {
+  const rows = ganttRows(); if (!rows.length) { toast('Sin datos','error'); return; }
+  const n = +document.getElementById('g-dias').value, ini = _d(document.getElementById('g-ini').value);
+  const days = Array.from({length:n}, (_,i) => { const d = new Date(ini); d.setDate(d.getDate()+i); return d; });
+  const h = ['OF Interna','Descripción','Responsable','Inicio','Término','Días','Avance %','Estado', ...days.map(d => String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'))];
+  const data = rows.map(r => {
+    const a = _d(r.fecha_inicio), b = _d(r.fecha_fin);
+    return [r.of_interna||'', r.descripcion||'', r.responsable||'', fmt(r.fecha_inicio), fmt(r.fecha_fin), Math.round((b-a)/864e5)+1, +r.avance||0, r.estado||'',
+      ...days.map(d => d>=a && d<=b ? '█' : '')];
+  });
+  dlXLSX(h, data, 'carta_gantt_msteel.xlsx', 'Carta Gantt');
 }
 </script>
 </body>
