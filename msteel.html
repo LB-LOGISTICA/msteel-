@@ -899,7 +899,8 @@ function showPage(id, el) {
   if (id === 'dashboard') { populateFilterOptions(); applyFilters(); }
   if (id === 'data') { initBOMData(); renderBOMTable(); }
   if (id === 'pletinas') renderPletinasTable();
-  if (['ordenes_trabajo','control_horas'].includes(id)) modShow(id);
+  if (id === 'control_horas') modShow(id);
+  if (id === 'ordenes_trabajo') otShow();
   if (id === 'planificacion') planShow();
   if (id === 'gantt') ganttShow();
   if (id === 'marca') marcaInit();
@@ -3689,13 +3690,6 @@ async function printMarca() {
 // ══════════════════════════════════════════════════════
 const ESTADO_COL = {'Pendiente':'#94a3b8','En curso':'#2563eb','Terminada':'#16a34a','Pausada':'#d97706','Emitida':'#0ea5e9','En proceso':'#2563eb','Anulada':'#dc2626'};
 const MODS = {
-  ordenes_trabajo: { table:'ordenes_trabajo', icon:'🛠', title:'Órdenes de Trabajo', file:'ordenes_trabajo_msteel', df:'fecha_emision',
-    fields:[
-      {k:'ot_numero',l:'N° OT',req:1},{k:'of_interna',l:'OF Interna',t:'of'},{k:'sku',l:'SKU'},{k:'descripcion',l:'Descripción'},
-      {k:'cantidad',l:'Cantidad',t:'number'},{k:'cliente',l:'Cliente'},{k:'operario',l:'Operario',t:'operario'},{k:'maquina',l:'Máquina / Puesto'},
-      {k:'fecha_emision',l:'F. Emisión',t:'date',d:'hoy'},{k:'fecha_entrega',l:'F. Entrega',t:'date'},
-      {k:'estado',l:'Estado',t:'select',o:['Emitida','En proceso','Terminada','Anulada'],d:'Emitida'},
-      {k:'observaciones',l:'Observaciones',t:'textarea',nolist:1}] },
   control_horas: { table:'control_horas', icon:'⏱', title:'Control de Horas Efectivas', file:'control_horas_msteel', df:'fecha',
     fields:[
       {k:'fecha',l:'Fecha',t:'date',req:1,d:'hoy'},{k:'operario',l:'Operario',t:'operario',req:1},{k:'ot_numero',l:'N° OT'},
@@ -3704,7 +3698,7 @@ const MODS = {
       {k:'horas_efectivas',l:'Horas efectivas',t:'number',ro:1},
       {k:'observaciones',l:'Observaciones',t:'textarea',nolist:1}] }
 };
-const modData = { ordenes_trabajo:[], control_horas:[] };
+const modData = { control_horas:[] };
 const modRows = {};   // filas visibles (filtradas) por módulo, para exportar
 let modEdit = null;
 const _d   = s => { const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); };
@@ -3804,11 +3798,11 @@ function modOpen(key, id) {
   const m = MODS[key], rec = id ? modData[key].find(r => String(r.id)===String(id)) : null;
   modEdit = { key, id: id||null };
   const hoy = _iso(new Date());
-  const ops = [...new Set([...modData.control_horas, ...modData.ordenes_trabajo].map(r=>r.operario).filter(Boolean))];
+  const ops = [...new Set([...modData.control_horas.map(r=>r.operario), ...(typeof otOperarios!=='undefined'?otOperarios.map(o=>o.nombre):[])].filter(Boolean))];
   const ofs = [...new Set((typeof orders!=='undefined'?orders:[]).map(o=>o.of_interna).filter(Boolean))];
   const fld = f => {
     let v = rec ? rec[f.k] : (f.d==='hoy' ? hoy : f.d);
-    if (key==='ordenes_trabajo' && f.k==='ot_numero' && !rec) v = 'OT-'+String(modData[key].length+1).padStart(4,'0');
+    
     v = v ?? ''; if (f.t==='time') v = String(v).slice(0,5);
     const st = 'width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:13px;';
     let inp;
@@ -4011,6 +4005,211 @@ function ganttExport() {
     return [o.of_mch||'', o.sku||'', o.cliente||'', o.descripcion1||'', planPrio(o), fmt(fi), fmt(fin), Math.round((b-a)/864e5)+1, PLAN_EST[o.estado||'Pendiente'],
       ...days.map(d => d>=a && d<=b ? '█' : '')]; });
   dlXLSX(h, data, 'carta_gantt_msteel.xlsx', 'Carta Gantt');
+}
+
+// ══════════════════════════════════════════════════════
+//  ÓRDENES DE TRABAJO (formato HOJA_DE_TRABAJO.xlsx)
+// ══════════════════════════════════════════════════════
+const OT_LOGO1 = 'data:image/png;base64,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';
+const OT_LOGO2 = 'data:image/png;base64,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';
+const OT_CARGOS = ['Cortador','Plegado','Soldador','Pintor','Otros'];
+const OT_HERR = {
+  pintura:   [['Pistola Pintar','Llave Multifuncion','Cepillo Limpieza','Compresor','Mangueras'],['Carros Pintura','Extractores de Aire','Jarros Mezcla','Luminaria','Guantes'],['Buzo Descarte','Full Face','Filtros','Otros']],
+  soldadura: [['Esmeril Angular','Escuadra','Desmoldantes','Maquina Soldar','Difusor'],['Alambre','Boquilla','Machinas Disponibles','Mascara de Soldar'],['Guantes','Chaqueta de Soldar','Gorro Descarne','Otros']]
+};
+const OT_CSS = `.ots{max-width:900px;margin:0 auto;background:#fff;border:2px solid #1e293b;font-family:Arial,sans-serif;font-size:12px;color:#111}
+.ots table{width:100%;border-collapse:collapse;table-layout:fixed}.ots td,.ots th{border:1px solid #475569;padding:4px 6px;vertical-align:middle;word-wrap:break-word}
+.ots .lbl{background:#e2e8f0;font-weight:700}.ots .sec{background:#1e3a5f;color:#fff;text-align:center;font-weight:700}.ots .ttl{font-size:17px;font-weight:700;text-align:center;border:none}
+.ots input[type=text],.ots input[type=date],.ots input[type=number],.ots select{width:100%;border:none;background:#fffbe6;font-size:12px;padding:3px;font-family:inherit;box-sizing:border-box}
+.ots input[readonly]{background:#e8f5ee;font-weight:700}.ots .chk label{display:block;padding:1px 0;cursor:pointer}.ots .num{text-align:right}
+.ots .mini{border:1px solid #94a3b8;background:#fff;border-radius:4px;cursor:pointer;font-size:12px;padding:1px 7px;margin-left:4px}`;
+const OT_PRINT_CSS = OT_CSS + `@page{size:A4;margin:10mm}body{margin:0}.ots input,.ots select{background:#fff!important}.noprint{display:none!important}`;
+
+let otList = [], otOperarios = [], otSupervisores = [], otForm = null;
+const OT_OP_DEF  = [{nombre:'MAXIMILIANO DIAZ',cargo:'Pintor'},{nombre:'JOSE MILLAPAN',cargo:'Soldador'},{nombre:'BRANDON VARGAS',cargo:'Soldador'}];
+const otTpl   = c => c==='Pintor' ? 'pintura' : 'soldadura';
+const otTitle = c => 'ORDEN DE TRABAJO STEEL ' + (c==='Pintor' ? 'AREA PINTURA' : c==='Soldador' ? 'SOLDADOR' : 'OTROS PROCESOS');
+const otFrame = p => { const m = String(p||'').match(/MSF-MC-?(\d+)/i) || String(p||'').match(/-(\d{2,4})-\d{3}\s*$/); return m ? m[1] : ''; };
+const uniq = a => [...new Set(a.filter(Boolean))];
+
+async function otLoadAll() {
+  if (!sbClient) { otOperarios = OT_OP_DEF; otSupervisores = [{nombre:'MANUEL PINTO'}]; return; }
+  const [a,b,c] = await Promise.all([
+    sbClient.from('ordenes_trabajo').select('*').order('created_at',{ascending:false}),
+    sbClient.from('operarios').select('*').order('nombre'),
+    sbClient.from('supervisores').select('*').order('nombre')]);
+  if (a.error || b.error || c.error) toast('Error: '+(a.error||b.error||c.error).message+' (¿ejecutaste el SQL actualizado?)','error');
+  otList = a.data || []; otOperarios = (b.data&&b.data.length) ? b.data : OT_OP_DEF; otSupervisores = (c.data&&c.data.length) ? c.data : [{nombre:'MANUEL PINTO'}];
+}
+async function otShow() { await otLoadAll(); otRenderList(); }
+
+// ---- Lista ----
+function otRenderList() {
+  otForm = null;
+  const pg = document.getElementById('page-ordenes_trabajo'), ce = tienePermiso('subir'), cd = tienePermiso('eliminar');
+  const q = (document.getElementById('ot-q')||{}).value || '';
+  const rows = otList.filter(r => !q || [r.ot_numero,r.operario,r.cliente,r.n_plano,r.of_interna,r.skus,r.supervisor].some(v => String(v||'').toLowerCase().includes(q.toLowerCase())));
+  pg.innerHTML = `<div class="ord-toolbar" style="flex-wrap:wrap;gap:8px;"><h2>🛠 Órdenes de Trabajo <span style="font-size:12px;font-weight:400;color:var(--text2);">(${rows.length})</span></h2>
+    <input id="ot-q" value="${ea(q)}" placeholder="🔍 Buscar OT, operario, cliente, plano…" oninput="otRenderList();document.getElementById('ot-q').focus()" style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:250px;outline:none;"/>
+    ${ce?'<button class="btn-primary" style="background:#0F6E56;" onclick="otNew()">＋ Nueva OT</button>':''}
+    <button class="btn-primary" onclick="otExport()">⬇ Exportar Excel</button></div>
+    <div class="table-wrap"><table class="ord-tbl"><thead><tr><th>N° OT</th><th>Cargo</th><th>Operario</th><th>Cliente</th><th>N° Plano</th><th>OF Interna</th><th>F. Ingreso</th><th>F. Término</th><th>Supervisor</th><th>Acciones</th></tr></thead><tbody>
+    ${rows.length ? rows.map(r=>`<tr><td><b>${esc(r.ot_numero)}</b></td><td>${esc(r.cargo)}</td><td>${esc(r.operario)}</td><td>${esc(r.cliente)}</td><td>${esc(r.n_plano)}</td><td>${esc(r.of_interna)}</td><td>${fmt(r.fecha_ingreso)}</td><td>${fmt(r.fecha_termino)}</td><td>${esc(r.supervisor)}</td>
+      <td style="white-space:nowrap;"><button title="Imprimir / PDF" onclick="otPrint('${r.id}')" style="border:none;background:none;cursor:pointer;">🖨</button>${ce?`<button title="Editar" onclick="otEdit('${r.id}')" style="border:none;background:none;cursor:pointer;">✏️</button>`:''}${cd?`<button title="Eliminar" onclick="otDel('${r.id}')" style="border:none;background:none;cursor:pointer;">🗑</button>`:''}</td></tr>`).join('')
+      : '<tr><td colspan="10"><div class="empty-state"><p>Sin órdenes de trabajo</p></div></td></tr>'}</tbody></table></div>`;
+}
+
+// ---- Formulario ----
+function otNew() {
+  const n = otList.reduce((m,r) => Math.max(m, parseInt(String(r.ot_numero||'').replace(/\D/g,''))||0), 0) + 1;
+  otForm = { id:null, ot_numero:'OT-'+String(n).padStart(4,'0'), operario:'', cargo:'', skus:[], cliente:'', n_plano:'', of_interna:'', fecha_ingreso:'', fecha_termino:'',
+    supervisor:(otSupervisores[0]||{}).nombre||'MANUEL PINTO', herramientas:{}, tareas:[], hallazgos:[{desc:'',tiempo:'',sol:''},{desc:'',tiempo:'',sol:''}] };
+  otRenderForm();
+}
+function otEdit(id) {
+  const r = otList.find(x => String(x.id)===String(id)); if (!r) return;
+  otForm = otFromRec(r); otRenderForm();
+}
+function otFromRec(r) {
+  return { id:r.id, ot_numero:r.ot_numero, operario:r.operario||'', cargo:r.cargo||'', skus:(r.skus_data||[]), cliente:r.cliente||'', n_plano:r.n_plano||'', of_interna:r.of_interna||'',
+    fecha_ingreso:r.fecha_ingreso||'', fecha_termino:r.fecha_termino||'', supervisor:r.supervisor||'', herramientas:r.herramientas||{}, tareas:r.tareas||[], hallazgos:r.hallazgos||[] };
+}
+function otSheetHTML(f, ed) {
+  const t = (v, h) => ed ? h : `<span>${esc(v)}</span>`;
+  const inp = (k, type) => t(f[k], `<input type="${type||'text'}" value="${ea(f[k])}" oninput="otForm.${k}=this.value"/>`);
+  const cargoLbl = f.cargo ? f.cargo.toUpperCase() : 'OPERARIO';
+  const tpl = OT_HERR[otTpl(f.cargo)];
+  const opsOpt = OT_CARGOS.map(c => { const l = otOperarios.filter(o=>o.cargo===c); return l.length ? `<optgroup label="${c}">${l.map(o=>`<option value="${ea(o.nombre)}" ${o.nombre===f.operario?'selected':''}>${esc(o.nombre)}</option>`).join('')}</optgroup>` : ''; }).join('');
+  const tot = f.tareas.reduce((s,x)=>s+(+x.total||0),0), dia = f.tareas.reduce((s,x)=>s+(+x.diaria||0),0);
+  const mini = (fn, tip) => ed ? `<button class="mini noprint" type="button" title="${tip}" onclick="${fn}">＋</button>` : '';
+  return `<div class="ots"><table>
+    <colgroup><col style="width:17%"><col style="width:17%"><col style="width:20%"><col style="width:16%"><col style="width:15%"><col style="width:15%"></colgroup>
+    <tr><td colspan="2" style="text-align:center;border:none;"><img src="${OT_LOGO1}" style="height:70px"></td><td colspan="2" class="ttl">${otTitle(f.cargo)}<div style="font-size:12px;font-weight:400;">N° ${esc(f.ot_numero)}</div></td><td colspan="2" style="text-align:center;border:none;"><img src="${OT_LOGO2}" style="height:70px"></td></tr>
+    <tr><td class="lbl">NOMBRE CLIENTE</td><td colspan="2">${inp('cliente')}</td><td class="lbl">FECHA INGRESO</td><td colspan="2">${inp('fecha_ingreso','date').replace(/<span>(.*?)<\/span>/, (m,x)=>`<span>${f.fecha_ingreso?fmt(f.fecha_ingreso):''}</span>`)}</td></tr>
+    <tr><td class="lbl">N° PLANO</td><td colspan="2">${inp('n_plano')}</td><td class="lbl">FECHA TERMINO</td><td colspan="2">${inp('fecha_termino','date').replace(/<span>(.*?)<\/span>/, (m,x)=>`<span>${f.fecha_termino?fmt(f.fecha_termino):''}</span>`)}</td></tr>
+    <tr><td class="lbl">OF INTERNA</td><td colspan="2">${inp('of_interna')}</td><td class="lbl">${cargoLbl}</td><td colspan="2">${ed?`<div style="display:flex;"><select onchange="otPickOp(this.value)"><option value="">— Seleccionar —</option>${opsOpt}</select>${mini('otToggleAdd(\'op\')','Agregar operario')}</div>
+      ${f._addOp?`<div class="noprint" style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;"><input type="text" id="ot-new-op" placeholder="Nombre" style="flex:1;min-width:90px;"/><select id="ot-new-cargo" style="width:90px;">${OT_CARGOS.map(c=>`<option>${c}</option>`).join('')}</select><button class="mini" onclick="otAddOp()">Guardar</button></div>`:''}`:esc(f.operario)}</td></tr>
+    <tr><td colspan="6" class="sec">DESCRIPCION HERRAMIENTAS Y ELEMENTOS PROTECCION PERSONAL</td></tr>
+    <tr>${tpl.map(col=>`<td colspan="2" class="chk" style="vertical-align:top;">${col.map(n=>`<label><input type="checkbox" ${f.herramientas[n]?'checked':''} ${ed?'':'disabled'} onchange="otForm.herramientas['${n}']=this.checked"/> ${n}</label>`).join('')}</td>`).join('')}</tr>
+    <tr class="lbl"><td colspan="3" style="text-align:center;">Descripción de la Tarea a Realizar</td><td style="text-align:center;">Frame</td><td style="text-align:center;">Cantidad Total</td><td style="text-align:center;">Cantidad Diaria</td></tr>
+    ${f.tareas.map((x,i)=>`<tr><td colspan="3">${t(x.desc,`<input type="text" value="${ea(x.desc)}" placeholder="Ej: PINTURA Y PALETIZACION" oninput="otForm.tareas[${i}].desc=this.value"/>`)}</td>
+      <td>${ed ? `<input type="text" value="${ea(x.frame)}" ${x.plano?'readonly':''} oninput="otForm.tareas[${i}].frame=this.value"/>` : esc(x.frame)}</td>
+      <td>${t(x.total,`<input type="number" class="num" value="${ea(x.total)}" oninput="otForm.tareas[${i}].total=this.value;otTotales()"/>`)}</td>
+      <td>${t(x.diaria,`<input type="number" class="num" value="${ea(x.diaria)}" oninput="otForm.tareas[${i}].diaria=this.value;otTotales()"/>`)}${ed&&!x.plano?`<button class="mini noprint" onclick="otForm.tareas.splice(${i},1);otRenderForm()" title="Quitar fila">✕</button>`:''}</td></tr>`).join('')}
+    ${ed?`<tr class="noprint"><td colspan="6"><button class="mini" onclick="otForm.tareas.push({desc:'',frame:'',total:'',diaria:''});otRenderForm()">＋ Agregar fila de tarea</button></td></tr>`:''}
+    <tr><td colspan="6" class="sec">Hallazgos, Retrasos e Inconvenientes</td></tr>
+    <tr class="lbl"><td colspan="3" style="text-align:center;">Descripción</td><td style="text-align:center;">Tiempo Detención Tarea</td><td colspan="2" style="text-align:center;">Solución</td></tr>
+    ${f.hallazgos.map((x,i)=>`<tr><td colspan="3">${t(x.desc,`<input type="text" value="${ea(x.desc)}" oninput="otForm.hallazgos[${i}].desc=this.value"/>`)}</td><td>${t(x.tiempo,`<input type="text" value="${ea(x.tiempo)}" oninput="otForm.hallazgos[${i}].tiempo=this.value"/>`)}</td><td colspan="2">${t(x.sol,`<input type="text" value="${ea(x.sol)}" oninput="otForm.hallazgos[${i}].sol=this.value"/>`)}</td></tr>`).join('')}
+    ${ed?`<tr class="noprint"><td colspan="6"><button class="mini" onclick="otForm.hallazgos.push({desc:'',tiempo:'',sol:''});otRenderForm()">＋ Agregar fila de hallazgo</button></td></tr>`:''}
+    <tr><td colspan="3" class="lbl" style="text-align:center;">Nombre</td><td class="lbl">TOTAL CANTIDAD</td><td colspan="2" class="num" id="ot-tot"><b>${tot}</b></td></tr>
+    <tr><td class="lbl">${cargoLbl}</td><td colspan="2"><input type="text" readonly value="${ea(f.operario)}" ${ed?'':'style="background:none"'}/></td><td class="lbl">CANTIDAD DIARIA</td><td colspan="2" class="num" id="ot-dia"><b>${dia}</b></td></tr>
+    <tr><td class="lbl">SUPERVISOR</td><td colspan="2">${ed?`<div style="display:flex;"><select onchange="otForm.supervisor=this.value">${otSupervisores.map(s=>`<option ${s.nombre===f.supervisor?'selected':''}>${esc(s.nombre)}</option>`).join('')}</select>${mini('otToggleAdd(\'sup\')','Agregar supervisor')}</div>
+      ${f._addSup?`<div class="noprint" style="margin-top:4px;display:flex;gap:4px;"><input type="text" id="ot-new-sup" placeholder="Nombre supervisor" style="flex:1;"/><button class="mini" onclick="otAddSup()">Guardar</button></div>`:''}`:esc(f.supervisor)}</td><td class="lbl">AVANCE</td><td colspan="2" class="num" id="ot-av"><b>${tot?Math.round(dia/tot*100):0}%</b></td></tr>
+    <tr><td class="lbl" style="height:60px;">FIRMA</td><td colspan="5"></td></tr></table></div>`;
+}
+function otRenderForm() {
+  const f = otForm, pg = document.getElementById('page-ordenes_trabajo');
+  const skuList = uniq(orders.map(o=>o.sku));
+  pg.innerHTML = `<div class="ord-toolbar" style="flex-wrap:wrap;gap:8px;"><h2>🛠 ${f.id?'Editar':'Nueva'} Orden de Trabajo</h2>
+    <button class="btn-primary" style="background:#94a3b8;" onclick="otShow()">← Volver</button>
+    <button class="btn-primary" onclick="otSave()">💾 Guardar</button></div>
+    <div style="max-width:900px;margin:0 auto 10px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
+      <b style="font-size:12px;">🔎 Buscar por SKU</b> <span style="font-size:11px;color:var(--text2);">(rellena cliente, N° plano, OF interna y los Frame)</span>
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center;">
+        <input id="ot-sku" list="dl-skus" placeholder="Ej: IMPU-1486" onkeydown="if(event.key==='Enter')otAddSku()" style="border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:13px;width:220px;outline:none;text-transform:uppercase;"/>
+        <datalist id="dl-skus">${skuList.map(s=>`<option value="${ea(s)}">`).join('')}</datalist>
+        <button class="btn-primary" onclick="otAddSku()">Agregar</button>
+        ${f.skus.map((s,i)=>`<span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:14px;font-size:11px;font-weight:600;">${esc(s.sku)} · ${esc(s.plano)} <a style="cursor:pointer;margin-left:4px;" onclick="otDelSku(${i})">✕</a></span>`).join('')}</div></div>
+    <div style="overflow-x:auto;">${otSheetHTML(f,true)}</div>`;
+}
+function otTotales() {
+  const f = otForm, tot = f.tareas.reduce((s,x)=>s+(+x.total||0),0), dia = f.tareas.reduce((s,x)=>s+(+x.diaria||0),0);
+  document.getElementById('ot-tot').innerHTML = `<b>${tot}</b>`; document.getElementById('ot-dia').innerHTML = `<b>${dia}</b>`;
+  document.getElementById('ot-av').innerHTML = `<b>${tot?Math.round(dia/tot*100):0}%</b>`;
+}
+function otPickOp(nombre) {
+  const o = otOperarios.find(x => x.nombre===nombre), prev = otTpl(otForm.cargo);
+  otForm.operario = nombre; otForm.cargo = o ? o.cargo : '';
+  if (otTpl(otForm.cargo)!==prev) otForm.herramientas = {};
+  otRenderForm();
+}
+function otToggleAdd(w) { otForm[w==='op'?'_addOp':'_addSup'] = !otForm[w==='op'?'_addOp':'_addSup']; otRenderForm(); }
+async function otAddOp() {
+  const nombre = document.getElementById('ot-new-op').value.trim().toUpperCase(), cargo = document.getElementById('ot-new-cargo').value;
+  if (!nombre) { toast('Escribe el nombre','error'); return; }
+  if (otOperarios.some(o=>o.nombre===nombre)) { toast('Ya existe','error'); return; }
+  if (sbClient) { const { error } = await sbClient.from('operarios').insert([{nombre,cargo}]); if (error) { toast('Error: '+error.message,'error'); return; } }
+  otOperarios = [...otOperarios, {nombre,cargo}];
+  otForm._addOp = false; otForm.operario = nombre; otForm.cargo = cargo; otForm.herramientas = {};
+  logMovimiento('Órdenes de Trabajo','Agregar operario',nombre+' ('+cargo+')'); otRenderForm();
+}
+async function otAddSup() {
+  const nombre = document.getElementById('ot-new-sup').value.trim().toUpperCase();
+  if (!nombre) { toast('Escribe el nombre','error'); return; }
+  if (otSupervisores.some(s=>s.nombre===nombre)) { toast('Ya existe','error'); return; }
+  if (sbClient) { const { error } = await sbClient.from('supervisores').insert([{nombre}]); if (error) { toast('Error: '+error.message,'error'); return; } }
+  otSupervisores = [...otSupervisores, {nombre}]; otForm._addSup = false; otForm.supervisor = nombre;
+  logMovimiento('Órdenes de Trabajo','Agregar supervisor',nombre); otRenderForm();
+}
+
+// ---- SKU → rellena cliente / plano / OF interna / Frame ----
+function otAddSku() {
+  const v = document.getElementById('ot-sku').value.trim().toUpperCase(); if (!v) return;
+  let m = orders.filter(o => String(o.sku||'').toUpperCase()===v);
+  if (!m.length) m = orders.filter(o => String(o.sku||'').toUpperCase().includes(v));
+  if (!m.length) { toast('SKU no encontrado en las órdenes','error'); return; }
+  const o = m[0];
+  if (otForm.skus.some(s => String(s.id)===String(o.id))) { toast('Ese SKU ya está agregado','error'); return; }
+  otForm.skus.push({ id:o.id, sku:o.sku, of_interna:o.of_interna, cliente:o.cliente, plano:o.descripcion1 });
+  otSyncSkus();
+}
+function otDelSku(i) { otForm.skus.splice(i,1); otSyncSkus(); }
+function otSyncSkus() {
+  const f = otForm, old = {}; f.tareas.forEach(t => { if (t.plano) old[t.plano] = t; });
+  f.cliente = uniq(f.skus.map(s=>s.cliente)).join(' - ');
+  f.n_plano = uniq(f.skus.map(s=>s.plano)).join(' - ');
+  f.of_interna = uniq(f.skus.map(s=>s.of_interna)).join(' - ');
+  const auto = uniq(f.skus.map(s=>s.plano)).map(p => old[p] || { plano:p, frame:otFrame(p), desc:'', total:'', diaria:'' });
+  f.tareas = [...auto, ...f.tareas.filter(t => !t.plano)];
+  otRenderForm();
+}
+
+// ---- Guardar / eliminar / imprimir / exportar ----
+async function otSave() {
+  const f = otForm;
+  if (!f.operario) { toast('Selecciona un operario','error'); return; }
+  const row = { ot_numero:f.ot_numero, operario:f.operario, cargo:f.cargo, cliente:f.cliente, n_plano:f.n_plano, of_interna:f.of_interna, skus:f.skus.map(s=>s.sku).join(', '), skus_data:f.skus,
+    fecha_ingreso:f.fecha_ingreso||null, fecha_termino:f.fecha_termino||null, supervisor:f.supervisor, herramientas:f.herramientas, tareas:f.tareas, hallazgos:f.hallazgos };
+  if (!sbClient) { toast('Conecta Supabase primero','error'); return; }
+  const { error } = f.id ? await sbClient.from('ordenes_trabajo').update(row).eq('id',f.id) : await sbClient.from('ordenes_trabajo').insert([row]);
+  if (error) { toast('Error: '+error.message,'error'); return; }
+  logMovimiento('Órdenes de Trabajo', f.id?'Editar':'Crear', `${f.ot_numero} · ${f.operario}`);
+  toast('✓ OT guardada','success'); await otShow();
+}
+async function otDel(id) {
+  if (!tienePermiso('eliminar')) { toast('Sin permiso','error'); return; }
+  if (!confirm('¿Eliminar esta orden de trabajo?')) return;
+  const { error } = await sbClient.from('ordenes_trabajo').delete().eq('id',id);
+  if (error) { toast('Error: '+error.message,'error'); return; }
+  logMovimiento('Órdenes de Trabajo','Eliminar','id '+id); await otShow();
+}
+function otPrint(id) {
+  const r = otList.find(x => String(x.id)===String(id)); if (!r) return;
+  const w = window.open('','_blank','width=960,height=800');
+  if (!w) { toast('Permite ventanas emergentes en el navegador','error'); return; }
+  w.document.write(`<html><head><meta charset="utf-8"><title>${r.ot_numero}</title><style>${OT_PRINT_CSS}</style></head><body>${otSheetHTML(otFromRec(r), false)}</body></html>`);
+  w.document.close(); w.focus(); setTimeout(() => w.print(), 600);
+}
+function otExport() {
+  if (!otList.length) { toast('Sin datos','error'); return; }
+  const h = ['N° OT','Cargo','Operario','Cliente','N° Plano','OF Interna','SKU','F. Ingreso','F. Término','Supervisor','Total cantidad','Cantidad diaria','Avance %'];
+  const sum = (r,k) => (r.tareas||[]).reduce((s,x)=>s+(+x[k]||0),0);
+  const rows = otList.map(r => { const t=sum(r,'total'), d=sum(r,'diaria'); return [r.ot_numero,r.cargo,r.operario,r.cliente,r.n_plano,r.of_interna,r.skus,r.fecha_ingreso?fmt(r.fecha_ingreso):'',r.fecha_termino?fmt(r.fecha_termino):'',r.supervisor,t,d,t?Math.round(d/t*100):0]; });
+  const tareas = otList.flatMap(r => (r.tareas||[]).map(x => [r.ot_numero,r.operario,x.desc||'',x.frame||'',+x.total||0,+x.diaria||0]));
+  const hall = otList.flatMap(r => (r.hallazgos||[]).filter(x=>x.desc||x.sol).map(x => [r.ot_numero,r.operario,x.desc||'',x.tiempo||'',x.sol||'']));
+  dlXLSX(h, rows, 'ordenes_trabajo_msteel.xlsx', 'Órdenes de Trabajo', [
+    { sheet:'Tareas', h:['N° OT','Operario','Descripción de la tarea','Frame','Cantidad total','Cantidad diaria'], rows:tareas },
+    { sheet:'Hallazgos', h:['N° OT','Operario','Descripción','Tiempo detención','Solución'], rows:hall }]);
 }
 </script>
 </body>
