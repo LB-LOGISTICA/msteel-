@@ -4023,12 +4023,15 @@ const OT_CSS = `.ots{max-width:900px;margin:0 auto;background:#fff;border:2px so
 .ots input[type=text],.ots input[type=date],.ots input[type=number],.ots select{width:100%;border:none;background:#fffbe6;font-size:12px;padding:3px;font-family:inherit;box-sizing:border-box}
 .ots input[readonly]{background:#e8f5ee;font-weight:700}.ots .chk label{display:block;padding:1px 0;cursor:pointer}.ots .num{text-align:right}
 .ots .mini{border:1px solid #94a3b8;background:#fff;border-radius:4px;cursor:pointer;font-size:12px;padding:1px 7px;margin-left:4px}`;
-const OT_PRINT_CSS = OT_CSS + `@page{size:A4;margin:10mm}body{margin:0}.ots input,.ots select{background:#fff!important}.noprint{display:none!important}`;
+const OT_PRINT_CSS = OT_CSS + `@page{size:letter portrait;margin:8mm}html,body{margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}.ots{max-width:100%;border-width:1.5px;font-size:11px}.ots td,.ots th{padding:3px 5px}.ots img{height:60px!important}.ots input,.ots select{background:#fff!important;appearance:none;-webkit-appearance:none}.noprint{display:none!important}`;
+(function(){ const st = document.createElement('style'); st.id = 'ot-style'; st.textContent = OT_CSS; document.head.appendChild(st); })();
 
 let otList = [], otOperarios = [], otSupervisores = [], otForm = null;
 const OT_OP_DEF  = [{nombre:'MAXIMILIANO DIAZ',cargo:'Pintor'},{nombre:'JOSE MILLAPAN',cargo:'Soldador'},{nombre:'BRANDON VARGAS',cargo:'Soldador'}];
 const otTpl   = c => c==='Pintor' ? 'pintura' : 'soldadura';
-const otTitle = c => 'ORDEN DE TRABAJO STEEL ' + (c==='Pintor' ? 'AREA PINTURA' : c==='Soldador' ? 'SOLDADOR' : 'OTROS PROCESOS');
+const OT_TIT = { Pintor:'AREA PINTURA', Soldador:'SOLDADOR', Plegado:'PLEGADO', Cortador:'CORTADOR', Otros:'OTROS PROCESOS' };
+const OT_LBL = { Pintor:'PINTOR', Soldador:'SOLDADOR', Plegado:'PLEGADOR', Cortador:'CORTADOR', Otros:'OPERARIO' };
+const otTitle = c => 'ORDEN DE TRABAJO STEEL' + (OT_TIT[c] ? ' ' + OT_TIT[c] : '');
 const otFrame = p => { const m = String(p||'').match(/MSF-MC-?(\d+)/i) || String(p||'').match(/-(\d{2,4})-\d{3}\s*$/); return m ? m[1] : ''; };
 const uniq = a => [...new Set(a.filter(Boolean))];
 
@@ -4077,7 +4080,7 @@ function otFromRec(r) {
 function otSheetHTML(f, ed) {
   const t = (v, h) => ed ? h : `<span>${esc(v)}</span>`;
   const inp = (k, type) => t(f[k], `<input type="${type||'text'}" value="${ea(f[k])}" oninput="otForm.${k}=this.value"/>`);
-  const cargoLbl = f.cargo ? f.cargo.toUpperCase() : 'OPERARIO';
+  const cargoLbl = OT_LBL[f.cargo] || 'OPERARIO';
   const tpl = OT_HERR[otTpl(f.cargo)];
   const opsOpt = OT_CARGOS.map(c => { const l = otOperarios.filter(o=>o.cargo===c); return l.length ? `<optgroup label="${c}">${l.map(o=>`<option value="${ea(o.nombre)}" ${o.nombre===f.operario?'selected':''}>${esc(o.nombre)}</option>`).join('')}</optgroup>` : ''; }).join('');
   const tot = f.tareas.reduce((s,x)=>s+(+x.total||0),0), dia = f.tareas.reduce((s,x)=>s+(+x.diaria||0),0);
@@ -4112,7 +4115,8 @@ function otRenderForm() {
   const skuList = uniq(orders.map(o=>o.sku));
   pg.innerHTML = `<div class="ord-toolbar" style="flex-wrap:wrap;gap:8px;"><h2>🛠 ${f.id?'Editar':'Nueva'} Orden de Trabajo</h2>
     <button class="btn-primary" style="background:#94a3b8;" onclick="otShow()">← Volver</button>
-    <button class="btn-primary" onclick="otSave()">💾 Guardar</button></div>
+    <button class="btn-primary" onclick="otSave()">💾 Guardar</button>
+    <button class="btn-primary" style="background:#475569;" onclick="otPrintForm()">🖨 Imprimir (Carta)</button></div>
     <div style="max-width:900px;margin:0 auto 10px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
       <b style="font-size:12px;">🔎 Buscar por SKU</b> <span style="font-size:11px;color:var(--text2);">(rellena cliente, N° plano, OF interna y los Frame)</span>
       <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center;">
@@ -4193,13 +4197,14 @@ async function otDel(id) {
   if (error) { toast('Error: '+error.message,'error'); return; }
   logMovimiento('Órdenes de Trabajo','Eliminar','id '+id); await otShow();
 }
-function otPrint(id) {
-  const r = otList.find(x => String(x.id)===String(id)); if (!r) return;
+function otOpenPrint(f) {
   const w = window.open('','_blank','width=960,height=800');
   if (!w) { toast('Permite ventanas emergentes en el navegador','error'); return; }
-  w.document.write(`<html><head><meta charset="utf-8"><title>${r.ot_numero}</title><style>${OT_PRINT_CSS}</style></head><body>${otSheetHTML(otFromRec(r), false)}</body></html>`);
+  w.document.write(`<html><head><meta charset="utf-8"><title>${esc(f.ot_numero)}</title><style>${OT_PRINT_CSS}</style></head><body>${otSheetHTML(f, false)}</body></html>`);
   w.document.close(); w.focus(); setTimeout(() => w.print(), 600);
 }
+function otPrint(id) { const r = otList.find(x => String(x.id)===String(id)); if (r) otOpenPrint(otFromRec(r)); }
+function otPrintForm() { if (!otForm) return; otOpenPrint(otForm); }
 function otExport() {
   if (!otList.length) { toast('Sin datos','error'); return; }
   const h = ['N° OT','Cargo','Operario','Cliente','N° Plano','OF Interna','SKU','F. Ingreso','F. Término','Supervisor','Total cantidad','Cantidad diaria','Avance %'];
