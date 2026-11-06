@@ -899,7 +899,8 @@ function showPage(id, el) {
   if (id === 'dashboard') { populateFilterOptions(); applyFilters(); }
   if (id === 'data') { initBOMData(); renderBOMTable(); }
   if (id === 'pletinas') renderPletinasTable();
-  if (['planificacion','ordenes_trabajo','control_horas'].includes(id)) modShow(id);
+  if (['ordenes_trabajo','control_horas'].includes(id)) modShow(id);
+  if (id === 'planificacion') planShow();
   if (id === 'gantt') ganttShow();
   if (id === 'marca') marcaInit();
   if (id === 'movimientos') loadMovimientos();
@@ -3688,15 +3689,6 @@ async function printMarca() {
 // ══════════════════════════════════════════════════════
 const ESTADO_COL = {'Pendiente':'#94a3b8','En curso':'#2563eb','Terminada':'#16a34a','Pausada':'#d97706','Emitida':'#0ea5e9','En proceso':'#2563eb','Anulada':'#dc2626'};
 const MODS = {
-  planificacion: { table:'planificacion', icon:'📅', title:'Planificación', file:'planificacion_msteel', df:'fecha_inicio',
-    fields:[
-      {k:'of_interna',l:'OF Interna',t:'of'},{k:'sku',l:'SKU'},{k:'cliente',l:'Cliente'},{k:'descripcion',l:'Descripción'},
-      {k:'cantidad',l:'Cantidad',t:'number'},{k:'area',l:'Área'},{k:'responsable',l:'Responsable',t:'operario'},
-      {k:'prioridad',l:'Prioridad',t:'select',o:['Alta','Media','Baja'],d:'Media'},
-      {k:'fecha_inicio',l:'Inicio',t:'date',req:1},{k:'fecha_fin',l:'Término',t:'date',req:1},
-      {k:'avance',l:'Avance %',t:'number',d:0},
-      {k:'estado',l:'Estado',t:'select',o:['Pendiente','En curso','Pausada','Terminada'],d:'Pendiente'},
-      {k:'notas',l:'Notas',t:'textarea',nolist:1}] },
   ordenes_trabajo: { table:'ordenes_trabajo', icon:'🛠', title:'Órdenes de Trabajo', file:'ordenes_trabajo_msteel', df:'fecha_emision',
     fields:[
       {k:'ot_numero',l:'N° OT',req:1},{k:'of_interna',l:'OF Interna',t:'of'},{k:'sku',l:'SKU'},{k:'descripcion',l:'Descripción'},
@@ -3712,7 +3704,7 @@ const MODS = {
       {k:'horas_efectivas',l:'Horas efectivas',t:'number',ro:1},
       {k:'observaciones',l:'Observaciones',t:'textarea',nolist:1}] }
 };
-const modData = { planificacion:[], ordenes_trabajo:[], control_horas:[] };
+const modData = { ordenes_trabajo:[], control_horas:[] };
 const modRows = {};   // filas visibles (filtradas) por módulo, para exportar
 let modEdit = null;
 const _d   = s => { const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); };
@@ -3854,8 +3846,6 @@ async function modSave() {
     if (f.req && !v) { toast('Falta: '+f.l,'error'); return; }
     row[f.k] = v==='' ? null : (f.t==='number' ? +v : v);
   }
-  if (key==='planificacion' && row.fecha_fin < row.fecha_inicio) { toast('El término no puede ser anterior al inicio','error'); return; }
-  if (key==='planificacion') { row.avance = Math.max(0,Math.min(100,row.avance||0)); if (row.avance>=100) row.estado='Terminada'; }
   if (key==='control_horas') row.horas_efectivas = calcHoras(row.hora_inicio,row.hora_fin,row.horas_paradas);
   const q = id ? sbClient.from(m.table).update(row).eq('id',id) : sbClient.from(m.table).insert([row]);
   const { error } = await q;
@@ -3863,8 +3853,7 @@ async function modSave() {
   logMovimiento(m.title, id?'Editar':'Crear', JSON.stringify(row).slice(0,200));
   modClose(); toast('✓ Guardado','success');
   await modLoad(key);
-  if (key==='planificacion' && document.getElementById('page-gantt').classList.contains('active')) ganttRender();
-  else modRender(key);
+  modRender(key);
 }
 async function modDel(key, id) {
   if (!tienePermiso('eliminar')) { toast('Sin permiso','error'); return; }
@@ -3883,7 +3872,78 @@ function modExport(key) {
   dlXLSX(h, data, m.file+'.xlsx', m.title, extra);
 }
 
-// ---- Carta Gantt (usa los datos de Planificación) ----
+// ---- Planificación (se llena sola con las Órdenes; prioridad y observaciones se guardan aparte) ----
+let planExtra = {};   // orden_id -> { prioridad, observaciones }
+const PLAN_EST = { 'Pendiente':'Pendiente', 'Parcial':'Parcial', 'Entregado':'Completado' };   // valor en Órdenes -> etiqueta
+const PRIO_ORD = { 'Alta':0, 'Media':1, 'Baja':2 };
+const planPrio = o => (planExtra[String(o.id)]||{}).prioridad || 'Media';
+const planObs  = o => (planExtra[String(o.id)]||{}).observaciones || '';
+let planRows = [];
+async function planLoadExtra() {
+  if (!sbClient) return;
+  const { data, error } = await sbClient.from('planificacion').select('*');
+  if (error) { toast('Error planificación: '+error.message+' (¿ejecutaste el SQL actualizado?)','error'); return; }
+  planExtra = {}; (data||[]).forEach(r => planExtra[String(r.orden_id)] = r);
+}
+async function planShow() {
+  const pg = document.getElementById('page-planificacion');
+  if (!pg.dataset.init) {
+    pg.dataset.init = 1;
+    const inp = 'border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;outline:none;';
+    pg.innerHTML = `<div class="ord-toolbar" style="flex-wrap:wrap;gap:8px;"><h2>📅 Planificación <span id="cnt-plan" style="font-size:12px;font-weight:400;color:var(--text2);"></span></h2>
+      <input id="plan-q" placeholder="🔍 Buscar SKU, OF MCH, OC, cliente…" oninput="planRender()" style="${inp}width:230px;"/>
+      <select id="plan-est" onchange="planRender()" style="${inp}"><option value="">Todos los estados</option><option>Pendiente</option><option>Parcial</option><option>Completado</option></select>
+      <select id="plan-pri" onchange="planRender()" style="${inp}"><option value="">Todas las prioridades</option><option>Alta</option><option>Media</option><option>Baja</option></select>
+      <button class="btn-primary" onclick="planExport()">⬇ Exportar Excel</button></div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Se llena automáticamente al subir órdenes. Estado y fecha compromiso se sincronizan con la hoja Órdenes. Orden: prioridad y luego fecha compromiso.</div>
+      <div class="table-wrap"><table class="ord-tbl"><thead><tr>
+        <th>SKU</th><th>Área</th><th>OF MCH</th><th>OC</th><th>Cliente</th><th>Descripción 1</th><th>Cantidad</th><th>Fecha compromiso</th><th>Estado</th><th>Prioridad</th><th>Observaciones</th>
+      </tr></thead><tbody id="plan-body"></tbody></table></div>`;
+  }
+  await planLoadExtra();
+  planRender();
+}
+function planRender() {
+  const q = (document.getElementById('plan-q').value||'').toLowerCase(), fe = document.getElementById('plan-est').value, fp = document.getElementById('plan-pri').value;
+  const hoy = _iso(new Date()), ce = tienePermiso('ordenes_fechas_estado'), dis = ce ? '' : 'disabled';
+  planRows = orders.filter(o =>
+    (!q || [o.sku,o.area,o.of_mch,o.oc_cliente,o.cliente,o.descripcion1,planObs(o)].some(v => String(v||'').toLowerCase().includes(q))) &&
+    (!fe || PLAN_EST[o.estado||'Pendiente']===fe) && (!fp || planPrio(o)===fp))
+    .sort((a,b) => (PRIO_ORD[planPrio(a)]-PRIO_ORD[planPrio(b)]) || String(a.fecha_entrega||'9999').localeCompare(String(b.fecha_entrega||'9999')));
+  document.getElementById('cnt-plan').textContent = `(${planRows.length})`;
+  const st = 'border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:12px;';
+  document.getElementById('plan-body').innerHTML = planRows.length ? planRows.map(o => {
+    const est = PLAN_EST[o.estado||'Pendiente'], pri = planPrio(o), late = o.fecha_entrega && o.fecha_entrega < hoy && o.estado!=='Entregado';
+    const pc = pri==='Alta'?'#dc2626':pri==='Media'?'#d97706':'#64748b';
+    return `<tr>
+      <td>${esc(o.sku)}</td><td>${esc(o.area)}</td><td>${esc(o.of_mch)}</td><td>${esc(o.oc_cliente)}</td><td>${esc(o.cliente)}</td><td>${esc(o.descripcion1)}</td><td>${o.cantidad??''}</td>
+      <td><input type="date" value="${o.fecha_entrega||''}" onchange="planSetFecha('${o.id}',this.value)" ${dis} style="${st}${late?'border-color:#dc2626;color:#dc2626;':''}"/></td>
+      <td><select onchange="planSetEstado('${o.id}',this.value)" ${dis} class="estado-select est-${o.estado||'Pendiente'}">${['Pendiente','Parcial','Completado'].map(e=>`<option ${e===est?'selected':''}>${e}</option>`).join('')}</select></td>
+      <td><select onchange="planSetExtra('${o.id}','prioridad',this.value);this.style.color=this.options[this.selectedIndex].dataset.c" ${dis} style="${st}font-weight:700;color:${pc};">${['Alta','Media','Baja'].map(p=>`<option data-c="${p==='Alta'?'#dc2626':p==='Media'?'#d97706':'#64748b'}" ${p===pri?'selected':''}>${p}</option>`).join('')}</select></td>
+      <td><input type="text" value="${ea(planObs(o))}" placeholder="Observaciones…" onchange="planSetExtra('${o.id}','observaciones',this.value)" ${dis} style="${st}width:200px;"/></td></tr>`;
+  }).join('') : '<tr><td colspan="11"><div class="empty-state"><p>Sin órdenes</p><small>Sube órdenes y aparecerán aquí automáticamente</small></div></td></tr>';
+}
+const planOrd = id => orders.find(o => String(o.id)===String(id));
+function planSetEstado(id, ui) { const o = planOrd(id); if (!o) return; updateEstado(o.id, ui==='Completado' ? 'Entregado' : ui); setTimeout(planRender, 50); }
+function planSetFecha(id, v)   { const o = planOrd(id); if (!o) return; updateField(o.id, 'fecha_entrega', v); setTimeout(planRender, 50); }
+async function planSetExtra(id, field, val) {
+  if (!tienePermiso('ordenes_fechas_estado')) { toast('Sin permiso para editar','error'); return; }
+  const o = planOrd(id); if (!o || !sbClient) return;
+  const row = { orden_id: String(o.id), [field]: val || null };
+  const { error } = await sbClient.from('planificacion').upsert(row, { onConflict:'orden_id' });
+  if (error) { toast('Error: '+error.message,'error'); return; }
+  planExtra[String(o.id)] = { ...(planExtra[String(o.id)]||{}), ...row };
+  logMovimiento('Planificación','Editar '+field, `SKU ${o.sku} · OF ${o.of_mch}: ${val}`);
+  if (field==='prioridad') planRender();
+}
+function planExport() {
+  if (!planRows.length) { toast('Sin datos','error'); return; }
+  const h = ['SKU','Área','OF MCH','OC','Cliente','Descripción 1','Cantidad','Fecha compromiso','Estado','Prioridad','Observaciones'];
+  const data = planRows.map(o => [o.sku, o.area, o.of_mch, o.oc_cliente, o.cliente, o.descripcion1, o.cantidad, o.fecha_entrega ? fmt(o.fecha_entrega) : '', PLAN_EST[o.estado||'Pendiente'], planPrio(o), planObs(o)]);
+  dlXLSX(h, data, 'planificacion_msteel.xlsx', 'Planificación');
+}
+
+// ---- Carta Gantt (barras desde la fecha de la orden hasta la fecha compromiso) ----
 async function ganttShow() {
   const pg = document.getElementById('page-gantt');
   if (!pg.dataset.init) {
@@ -3892,63 +3952,64 @@ async function ganttShow() {
     pg.innerHTML = `<div class="ord-toolbar" style="flex-wrap:wrap;gap:8px;"><h2>📈 Carta Gantt</h2>
       <label style="font-size:11px;color:var(--text2);">Desde <input type="date" id="g-ini" onchange="ganttRender()" style="${inp}"/></label>
       <select id="g-dias" onchange="ganttRender()" style="${inp}"><option value="30">30 días</option><option value="60" selected>60 días</option><option value="90">90 días</option><option value="120">120 días</option></select>
-      <select id="g-est" onchange="ganttRender()" style="${inp}"><option value="">Todos los estados</option><option>Pendiente</option><option>En curso</option><option>Pausada</option><option>Terminada</option></select>
+      <select id="g-est" onchange="ganttRender()" style="${inp}"><option value="">Todos los estados</option><option>Pendiente</option><option>Parcial</option><option>Completado</option></select>
       <button class="btn-primary" onclick="ganttExport()">⬇ Exportar Excel</button></div>
-      <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Las barras salen de la hoja <b>Planificación</b>. Verde oscuro = avance. <span style="color:#dc2626;font-weight:700;">Rojo = atrasada</span>. Clic en una barra para editarla.</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Cada barra va desde la fecha de la orden hasta su <b>fecha compromiso</b> (hoja Planificación). Parte oscura = avance (Parcial 50%, Completado 100%). <span style="color:#dc2626;font-weight:700;">Rojo = atrasada</span>.</div>
       <div id="g-box" class="table-wrap" style="padding:0;"></div>`;
   }
-  await modLoad('planificacion');
+  await planLoadExtra();
   if (!document.getElementById('g-ini').value) {
-    const ds = modData.planificacion.map(r=>r.fecha_inicio).filter(Boolean).sort();
-    const base = ds.length ? _d(ds[0]) : new Date(); base.setDate(base.getDate()-2);
+    const ds = orders.map(o=>o.fecha).filter(Boolean).sort();
+    const base = ds.length ? _d(ds[Math.max(0,ds.length-1)]) : new Date(); base.setDate(base.getDate()-5);
     document.getElementById('g-ini').value = _iso(base);
   }
   ganttRender();
 }
+const G_AV = { 'Pendiente':0, 'Parcial':50, 'Entregado':100 };
 function ganttRows() {
   const est = document.getElementById('g-est').value;
-  return modData.planificacion.filter(r => r.fecha_inicio && r.fecha_fin && (!est || r.estado===est))
-    .sort((a,b) => a.fecha_inicio.localeCompare(b.fecha_inicio));
+  return orders.filter(o => o.fecha && o.fecha_entrega && (!est || PLAN_EST[o.estado||'Pendiente']===est))
+    .map(o => ({ o, ini: o.fecha <= o.fecha_entrega ? o.fecha : o.fecha_entrega, fin: o.fecha_entrega }))
+    .sort((a,b) => a.ini.localeCompare(b.ini));
 }
-function ganttBarColor(r) {
-  return (r.fecha_fin < _iso(new Date()) && r.estado!=='Terminada' && (+r.avance||0)<100) ? '#dc2626' : (ESTADO_COL[r.estado]||'#94a3b8');
+function ganttBarColor(o) {
+  if (o.estado!=='Entregado' && o.fecha_entrega < _iso(new Date())) return '#dc2626';
+  return o.estado==='Entregado' ? '#16a34a' : o.estado==='Parcial' ? '#2563eb' : '#94a3b8';
 }
 function ganttRender() {
   const W = 28, n = +document.getElementById('g-dias').value, ini = _d(document.getElementById('g-ini').value), rows = ganttRows();
   const days = Array.from({length:n}, (_,i) => { const d = new Date(ini); d.setDate(d.getDate()+i); return d; });
   const MES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  let meses = '', cur = -1, cnt = 0;
-  days.forEach((d,i) => { if (d.getMonth()!==cur) { if (cnt) meses += `<div style="width:${cnt*W}px;flex:none;border-right:1px solid #cbd5e1;padding-left:4px;">${MES[cur]}</div>`; cur=d.getMonth(); cnt=0; } cnt++; });
+  let meses = '', cur = days[0].getMonth(), cnt = 0;
+  days.forEach(d => { if (d.getMonth()!==cur) { meses += `<div style="width:${cnt*W}px;flex:none;border-right:1px solid #cbd5e1;padding-left:4px;">${MES[cur]}</div>`; cur=d.getMonth(); cnt=0; } cnt++; });
   meses += `<div style="width:${cnt*W}px;flex:none;padding-left:4px;">${MES[cur]}</div>`;
   const dd = days.map(d => `<div style="width:${W}px;flex:none;text-align:center;font-size:10px;padding:2px 0;${[0,6].includes(d.getDay())?'background:#f1f5f9;color:#94a3b8;':''}">${d.getDate()}</div>`).join('');
   const hoyX = Math.round((_d(_iso(new Date())) - ini)/864e5);
-  const left = 'flex:0 0 250px;position:sticky;left:0;background:#fff;z-index:3;border-right:1px solid #cbd5e1;padding:4px 8px;font-size:11px;overflow:hidden;';
+  const left = 'flex:0 0 270px;position:sticky;left:0;background:#fff;z-index:3;border-right:1px solid #cbd5e1;padding:4px 8px;font-size:11px;overflow:hidden;';
   const grid = `background:repeating-linear-gradient(to right,#eef2f7 0,#eef2f7 1px,transparent 1px,transparent ${W}px);`;
-  const body = rows.map(r => {
-    const s = Math.round((_d(r.fecha_inicio)-ini)/864e5), e = Math.round((_d(r.fecha_fin)-ini)/864e5);
-    const x = s*W, w = Math.max(W, (e-s+1)*W), av = Math.max(0,Math.min(100,+r.avance||0));
+  const body = rows.map(({o, ini:fi, fin}) => {
+    const s = Math.round((_d(fi)-ini)/864e5), e = Math.round((_d(fin)-ini)/864e5), av = G_AV[o.estado||'Pendiente'];
+    const x = s*W, w = Math.max(W, (e-s+1)*W);
     return `<div style="display:flex;border-bottom:1px solid #eef2f7;height:34px;">
-      <div style="${left}"><b>${esc(r.of_interna||'—')}</b> <span style="color:#64748b;">${esc(r.descripcion||r.sku||'')}</span><br><span style="color:#94a3b8;">${fmt(r.fecha_inicio)} → ${fmt(r.fecha_fin)} · ${av}%</span></div>
+      <div style="${left}"><b>${esc(o.of_mch||'—')}</b> · ${esc(o.sku)} <span style="color:#64748b;">${esc(o.cliente)}</span><br><span style="color:#94a3b8;">${fmt(fi)} → ${fmt(fin)} · ${planPrio(o)}</span></div>
       <div style="position:relative;flex:none;width:${n*W}px;${grid}">
-        <div onclick="modOpen('planificacion','${r.id}')" title="${ea((r.descripcion||'')+' · '+r.estado+' · '+av+'%')}" style="position:absolute;top:7px;height:20px;left:${x}px;width:${w}px;background:${ganttBarColor(r)};opacity:.85;border-radius:5px;cursor:pointer;overflow:hidden;">
+        <div title="${ea(o.descripcion1+' · '+PLAN_EST[o.estado||'Pendiente'])}" style="position:absolute;top:7px;height:20px;left:${x}px;width:${w}px;background:${ganttBarColor(o)};opacity:.85;border-radius:5px;overflow:hidden;">
           <div style="width:${av}%;height:100%;background:rgba(0,0,0,.28);"></div></div></div></div>`;
   }).join('');
-  document.getElementById('g-box').innerHTML = rows.length ? `<div style="overflow-x:auto;"><div style="min-width:${250+n*W}px;position:relative;">
+  document.getElementById('g-box').innerHTML = rows.length ? `<div style="overflow-x:auto;"><div style="min-width:${270+n*W}px;position:relative;">
     <div style="display:flex;position:sticky;top:0;z-index:4;background:#fff;border-bottom:1px solid #cbd5e1;"><div style="${left}z-index:5;"></div><div><div style="display:flex;font-size:11px;font-weight:700;">${meses}</div><div style="display:flex;">${dd}</div></div></div>
     ${body}
-    ${hoyX>=0&&hoyX<n?`<div style="position:absolute;top:0;bottom:0;left:${250+hoyX*W+W/2}px;width:2px;background:#dc2626;opacity:.5;z-index:2;pointer-events:none;"></div>`:''}
-    </div></div>` : '<div class="empty-state"><p>Sin tareas planificadas</p><small>Crea registros en la hoja Planificación (con fecha de inicio y término)</small></div>';
+    ${hoyX>=0&&hoyX<n?`<div style="position:absolute;top:0;bottom:0;left:${270+hoyX*W+W/2}px;width:2px;background:#dc2626;opacity:.5;z-index:2;pointer-events:none;"></div>`:''}
+    </div></div>` : '<div class="empty-state"><p>Sin órdenes con fecha compromiso</p><small>Las órdenes nuevas traen fecha compromiso automática (6 días hábiles)</small></div>';
 }
 function ganttExport() {
   const rows = ganttRows(); if (!rows.length) { toast('Sin datos','error'); return; }
   const n = +document.getElementById('g-dias').value, ini = _d(document.getElementById('g-ini').value);
   const days = Array.from({length:n}, (_,i) => { const d = new Date(ini); d.setDate(d.getDate()+i); return d; });
-  const h = ['OF Interna','Descripción','Responsable','Inicio','Término','Días','Avance %','Estado', ...days.map(d => String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'))];
-  const data = rows.map(r => {
-    const a = _d(r.fecha_inicio), b = _d(r.fecha_fin);
-    return [r.of_interna||'', r.descripcion||'', r.responsable||'', fmt(r.fecha_inicio), fmt(r.fecha_fin), Math.round((b-a)/864e5)+1, +r.avance||0, r.estado||'',
-      ...days.map(d => d>=a && d<=b ? '█' : '')];
-  });
+  const h = ['OF MCH','SKU','Cliente','Descripción 1','Prioridad','Inicio','Fecha compromiso','Días','Estado', ...days.map(d => String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'))];
+  const data = rows.map(({o, ini:fi, fin}) => { const a = _d(fi), b = _d(fin);
+    return [o.of_mch||'', o.sku||'', o.cliente||'', o.descripcion1||'', planPrio(o), fmt(fi), fmt(fin), Math.round((b-a)/864e5)+1, PLAN_EST[o.estado||'Pendiente'],
+      ...days.map(d => d>=a && d<=b ? '█' : '')]; });
   dlXLSX(h, data, 'carta_gantt_msteel.xlsx', 'Carta Gantt');
 }
 </script>
