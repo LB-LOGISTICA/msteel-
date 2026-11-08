@@ -362,14 +362,14 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
 
   <!-- Módulos -->
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('ordenes',this)">📋 Órdenes <span id="alert-badge" style="display:none;background:#dc3545;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"></span></button>
     <button class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</button>
-    <button class="nav-tab" onclick="showPage('pletinas',this)">🔩 Pletinas</button>
+    <button class="nav-tab active" onclick="showPage('ordenes',this)">📋 Órdenes <span id="alert-badge" style="display:none;background:#dc3545;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:auto;"></span></button>
     <button class="nav-tab" onclick="showPage('planificacion',this)">📅 Planificación</button>
     <button class="nav-tab" onclick="showPage('ordenes_trabajo',this)">🛠 Órdenes de Trabajo</button>
     <button class="nav-tab" onclick="showPage('gantt',this)">📈 Carta Gantt</button>
     <button class="nav-tab" onclick="showPage('control_horas',this)">⏱ Control de Horas</button>
     <button class="nav-tab" onclick="showPage('marca',this)">🏷 Marca</button>
+    <button class="nav-tab" onclick="showPage('pletinas',this)">🔩 Pletinas</button>
     <button class="nav-tab" id="nav-data" style="display:none;" onclick="showPage('data',this)">🗄 BOM / Data</button>
     <button class="nav-tab" id="nav-movimientos" style="display:none;" onclick="showPage('movimientos',this)">🛡 Movimientos</button>
   </div>
@@ -538,11 +538,11 @@ table.dtbl td{padding:7px 10px;vertical-align:middle;}
         <th onclick="sortOrd('cliente')" style="cursor:pointer;">Cliente ↕</th>
         <th onclick="sortOrd('area')" style="cursor:pointer;">Área ↕</th>
         <th onclick="sortOrd('estado')" style="cursor:pointer;">MSTEEL ↕</th>
-        <th onclick="sortOrd('fecha_entrega')" style="cursor:pointer;">F. Entrega ↕</th>
-        <th>F. Ingreso</th><th>F. Término</th><th onclick="sortOrd('msteel')" style="cursor:pointer;">Logística ↕</th><th>🖨</th><th title="Ver pletinas">🔩</th><th></th>
+        <th onclick="sortOrd('created_at')" style="cursor:pointer;" title="Fecha en que se subió al portal (fija)">F. Recepción ↕</th>
+        <th onclick="sortOrd('fecha_termino')" style="cursor:pointer;" title="Se sincroniza con la Fecha compromiso de Planificación">F. Término ↕</th><th onclick="sortOrd('msteel')" style="cursor:pointer;">Logística ↕</th><th>🖨</th><th title="Ver pletinas">🔩</th><th></th>
       </tr></thead>
       <tbody id="ord-body">
-        <tr><td colspan="18"><div class="empty-state">
+        <tr><td colspan="17"><div class="empty-state">
           <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
           <p>No hay órdenes registradas</p><small>Sube un PDF para comenzar</small>
         </div></td></tr>
@@ -896,6 +896,7 @@ function showPage(id, el) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   el.classList.add('active');
+  if (id === 'ordenes') renderOrdTable();
   if (id === 'dashboard') { populateFilterOptions(); applyFilters(); }
   if (id === 'data') { initBOMData(); renderBOMTable(); }
   if (id === 'pletinas') renderPletinasTable();
@@ -1134,13 +1135,18 @@ function splitClienteArea(tail) {
   return { cliente: tokens.join(' '), area };
 }
 
+// F. Recepción = día en que la orden se subió al portal (created_at de la base; no editable)
+function recepcionISO(o) {
+  if (!o.created_at) return '';
+  const d = new Date(o.created_at);
+  return isNaN(d) ? String(o.created_at).slice(0,10) : d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 function mkRow(item,fecha,sku,d1,d2,qty,oc,ofm,ofi,cli,area) {
   const iso = toISO(fecha);
   return { item, fecha:iso, sku:sku.trim(), descripcion1:d1.trim(), descripcion2:d2.trim(),
     cantidad:parseInt(qty)||0, oc_cliente:oc.trim(), of_mch:ofm.trim(),
     of_interna:ofi.trim(), cliente:cli.trim(), area:area.trim(),
-    estado:'Pendiente', fecha_entrega:addWorkdays(iso,6),
-    fecha_ingreso:null, fecha_termino:null, msteel:'Pendiente' };
+    estado:'Pendiente', fecha_termino:addWorkdays(iso,6), msteel:'Pendiente' };
 }
 
 
@@ -1189,7 +1195,13 @@ async function updateEstado(id, value) {
   if (!tienePermiso('ordenes_fechas_estado')) { toast('No tienes permiso para esta acción','error'); renderOrdTable(); return; }
   const prev = orders.find(o=>o.id===id);
   orders = orders.map(o=>o.id===id?{...o,estado:value}:o);
-  if (sbClient) await sbClient.from(TABLE).update({estado:value}).eq('id',id);
+  const hoyE = new Date(); const hoyISO = hoyE.getFullYear()+'-'+String(hoyE.getMonth()+1).padStart(2,'0')+'-'+String(hoyE.getDate()).padStart(2,'0');
+  const entregado = value==='Entregado' ? (prev?.fecha_entregado || hoyISO) : null;
+  orders = orders.map(o=>o.id===id?{...o,fecha_entregado:entregado}:o);
+  if (sbClient) {
+    let r = await sbClient.from(TABLE).update({estado:value, fecha_entregado:entregado}).eq('id',id);
+    if (r.error) await sbClient.from(TABLE).update({estado:value}).eq('id',id);   // si aún no existe la columna
+  }
   logMovimiento('Órdenes', 'Editar Estado', `SKU ${prev?.sku||id}: ${prev?.estado||''} → ${value}`);
 }
 
@@ -1271,9 +1283,9 @@ function renderOrdTable() {
   tbody.innerHTML = flt.map((o,i) => {
     const ec = 'est-'+(o.estado||'Pendiente');
     const mc = 'est-'+(o.msteel||'Pendiente');
-    const vencida = o.estado!=='Entregado' && o.fecha_entrega && o.fecha_entrega < today;
-    const proxima = o.estado!=='Entregado' && o.fecha_entrega && o.fecha_entrega >= today &&
-                    (new Date(o.fecha_entrega)-new Date())/(1000*60*60*24) <= 2;
+    const vencida = o.estado!=='Entregado' && o.fecha_termino && o.fecha_termino < today;
+    const proxima = o.estado!=='Entregado' && o.fecha_termino && o.fecha_termino >= today &&
+                    (new Date(o.fecha_termino)-new Date())/(1000*60*60*24) <= 2;
     const rowStyle = vencida ? 'background:#fff5f5;' : proxima ? 'background:#fffbeb;' : '';
     const alertIcon = vencida ? '<span title="Vencida" style="color:#dc3545;font-size:13px;">⚠️</span>' :
                       proxima ? '<span title="Vence pronto" style="color:#f59e0b;font-size:13px;">🔔</span>' : '';
@@ -1296,9 +1308,8 @@ function renderOrdTable() {
           <option${o.estado==='Entregado'?' selected':''}>Entregado</option>
         </select>
       </td>
-      <td><input type="date" class="fi${vencida?' vencida-date':''}" value="${o.fecha_entrega||''}" onchange="updateField('${o.id}','fecha_entrega',this.value)" title="6 días hábiles" ${dis(puedeFechasEstado)}/></td>
-      <td><input type="date" class="fi" value="${o.fecha_ingreso||''}" onchange="updateField('${o.id}','fecha_ingreso',this.value)" ${dis(puedeFechasEstado)}/></td>
-      <td><input type="date" class="fi" value="${o.fecha_termino||''}" onchange="updateField('${o.id}','fecha_termino',this.value)" ${dis(puedeFechasEstado)}/></td>
+      <td style="font-size:12px;white-space:nowrap;" title="Fecha de subida al portal (no editable)">${fmt(recepcionISO(o))}</td>
+      <td><input type="date" class="fi${vencida?' vencida-date':''}" value="${o.fecha_termino||''}" onchange="updateField('${o.id}','fecha_termino',this.value)" title="Enlazada con Planificación" ${dis(puedeFechasEstado)}/></td>
       <td>
         <select class="estado-select ${mc}" onchange="onMsteelChange(this,'${o.id}')" ${dis(puedeMsteel)}>
           <option${o.msteel==='Pendiente'?' selected':''}>Pendiente</option>
@@ -1997,17 +2008,17 @@ function updateKPIs() {
   const qty   = dashFiltered.reduce((s,d)=>s+(parseInt(d.cantidad)||0),0);
   const ent   = dashFiltered.filter(d=>d.estado==='Entregado').length;
   const pend  = dashFiltered.filter(d=>d.estado==='Pendiente'||d.estado==='Parcial').length;
-  const venc  = dashFiltered.filter(d=>d.estado!=='Entregado' && d.fecha_entrega && d.fecha_entrega < today).length;
-  const conF  = dashFiltered.filter(d=>d.estado==='Entregado'&&d.fecha_entrega&&d.fecha_termino);
-  const atiem = conF.filter(d=>d.fecha_termino<=d.fecha_entrega).length;
+  const venc  = dashFiltered.filter(d=>d.estado!=='Entregado' && d.fecha_termino && d.fecha_termino < today).length;
+  const conF  = dashFiltered.filter(d=>d.estado==='Entregado'&&d.fecha_entregado&&d.fecha_termino);
+  const atiem = conF.filter(d=>d.fecha_entregado<=d.fecha_termino).length;
   const cum   = conF.length ? Math.round(atiem/conF.length*100) : null;
 
-  // Avg days ingreso → termino
-  const conDias = dashFiltered.filter(d=>d.fecha_ingreso&&d.fecha_termino);
+  // Promedio de días recepción → entrega
+  const conDias = dashFiltered.filter(d=>d.estado==='Entregado'&&d.fecha_entregado&&recepcionISO(d));
   let avgDias = null;
   if (conDias.length) {
     const totalDias = conDias.reduce((s,d)=>{
-      const diff = (new Date(d.fecha_termino)-new Date(d.fecha_ingreso))/(1000*60*60*24);
+      const diff = (new Date(d.fecha_entregado)-new Date(recepcionISO(d)))/(1000*60*60*24);
       return s + diff;
     },0);
     avgDias = Math.round(totalDias/conDias.length);
@@ -2140,10 +2151,10 @@ function updateAllCharts() {
   },{ ...baseOpts(), plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.parsed.y+' OFs'}}} }, [labelPlugin(false,' OFs')]);
 
   // Cumplimiento donut
-  const conF=dashFiltered.filter(d=>d.estado==='Entregado'&&d.fecha_entrega&&d.fecha_termino);
-  const atiem=conF.filter(d=>d.fecha_termino<=d.fecha_entrega).length;
+  const conF=dashFiltered.filter(d=>d.estado==='Entregado'&&d.fecha_entregado&&d.fecha_termino);
+  const atiem=conF.filter(d=>d.fecha_entregado<=d.fecha_termino).length;
   const tarde=conF.length-atiem;
-  const sinD=dashFiltered.filter(d=>d.estado==='Entregado'&&(!d.fecha_entrega||!d.fecha_termino)).length;
+  const sinD=dashFiltered.filter(d=>d.estado==='Entregado'&&(!d.fecha_entregado||!d.fecha_termino)).length;
   upsertChart('ch-cum','doughnut',{
     labels:['A tiempo','Con retraso','Sin datos'],
     datasets:[{data:[atiem,tarde,sinD],backgroundColor:[PAL[0],PAL[3],'#e2e8f0'],borderWidth:2,borderColor:'#fff'}]
@@ -2239,8 +2250,7 @@ function renderDataTable() {
     <td style="font-weight:500;">${esc(d.cliente)}</td>
     <td><span style="background:#e0e7ff;color:#3730a3;font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;">${esc(d.area)}</span></td>
     <td><span class="dbadge ${d.estado||''}">${esc(d.estado)}</span></td>
-    <td style="font-size:11px;">${fmt(d.fecha_entrega)}</td>
-    <td style="font-size:11px;">${fmt(d.fecha_ingreso)}</td>
+    <td style="font-size:11px;">${fmt(recepcionISO(d))}</td>
     <td style="font-size:11px;">${fmt(d.fecha_termino)}</td>
     <td style="color:var(--text2);font-size:11px;"><span class="dbadge ${d.msteel||'Pendiente'}">${esc(d.msteel||'Pendiente')}</span></td>
   </tr>`).join('');
@@ -2252,8 +2262,8 @@ function renderDataTable() {
 // ══════════════════════════════════════════════════════
 function exportCSVOrd() {
   if (!orders.length) { toast('Sin datos','error'); return; }
-  const h=['#','Fecha','SKU','Desc1','Desc2','Cantidad','OC Cliente','OF MCH','OF Interna','Cliente','Área','MSTEEL','F.Entrega','F.Ingreso','F.Término','Logística'];
-  const rows=orders.map((o,i)=>[i+1,fmt(o.fecha),o.sku,o.descripcion1,o.descripcion2,o.cantidad,o.oc_cliente,o.of_mch,o.of_interna,o.cliente,o.area,o.estado,fmt(o.fecha_entrega),fmt(o.fecha_ingreso),fmt(o.fecha_termino),o.msteel||'Pendiente']);
+  const h=['#','Fecha','SKU','Desc1','Desc2','Cantidad','OC Cliente','OF MCH','OF Interna','Cliente','Área','MSTEEL','F.Recepción','F.Término','Logística'];
+  const rows=orders.map((o,i)=>[i+1,fmt(o.fecha),o.sku,o.descripcion1,o.descripcion2,o.cantidad,o.oc_cliente,o.of_mch,o.of_interna,o.cliente,o.area,o.estado,fmt(recepcionISO(o)),fmt(o.fecha_termino),o.msteel||'Pendiente']);
   dlXLSX(h,rows,'ordenes_msteel.xlsx','Datos');
 }
 
@@ -2641,10 +2651,10 @@ function startAutoRefresh() {
 
 function checkVencidasNotify() {
   const today = new Date().toISOString().slice(0,10);
-  const vencidas = orders.filter(d=>d.estado!=='Entregado'&&d.fecha_entrega&&d.fecha_entrega<today);
+  const vencidas = orders.filter(d=>d.estado!=='Entregado'&&d.fecha_termino&&d.fecha_termino<today);
   const proximas = orders.filter(d=>{
-    if (d.estado==='Entregado'||!d.fecha_entrega) return false;
-    const dias = (new Date(d.fecha_entrega)-new Date())/(1000*60*60*24);
+    if (d.estado==='Entregado'||!d.fecha_termino) return false;
+    const dias = (new Date(d.fecha_termino)-new Date())/(1000*60*60*24);
     return dias>=0 && dias<=2;
   });
   // Update page title with alert count
@@ -2718,7 +2728,7 @@ async function intentarLogin() {
     ocultarLogin();
     aplicarPermisos();
     // Asegurar que Órdenes quede activo al entrar
-    const primerTab = document.querySelector('.nav-tab');
+    const primerTab = document.querySelector('.nav-tab[onclick*="\'ordenes\'"]');
     if (primerTab) showPage('ordenes', primerTab);
     // Iniciar carga de datos
     loadOrders();
@@ -2752,7 +2762,7 @@ function aplicarPermisos() {
 
   const activeId = document.querySelector('.page.active')?.id;
   if (rol!=='ADMIN' && (activeId==='page-data'||activeId==='page-movimientos')) {
-    showPage('ordenes', document.querySelector('.nav-tab'));
+    showPage('ordenes', document.querySelector('.nav-tab[onclick*="\'ordenes\'"]'));
   }
   renderOrdTable();
 }
@@ -3503,9 +3513,7 @@ async function handleExcel(file) {
         cliente:       getVal(r, colMap.cliente),
         area:          getVal(r, colMap.area),
         estado:        validEstados.includes(estadoVal) ? estadoVal : 'Pendiente',
-        fecha_entrega: fechaISO ? addWorkdays(fechaISO, 6) : null,
-        fecha_ingreso: null,
-        fecha_termino: null,
+        fecha_termino: fechaISO ? addWorkdays(fechaISO, 6) : null,
         msteel:        'Pendiente',
       };
       if (!row.sku && !row.descripcion1) continue;
@@ -3605,7 +3613,7 @@ async function printOF(id) {
       <div class="of-field"><div class="of-label">OF Interna</div><div class="of-value mono" style="font-size:14px;">${o.of_interna||''}</div></div>
       <div class="of-field"><div class="of-label">Cliente</div><div class="of-value">${o.cliente||''}</div></div>
       <div class="of-field"><div class="of-label">Área</div><div class="of-value"><span style="background:#e0e7ff;color:#3730a3;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;">${o.area||''}</span></div></div>
-      <div class="of-field"><div class="of-label">Fecha Entrega</div><div class="of-value mono" style="font-size:14px;">${fmt(o.fecha_entrega)}</div></div>
+      <div class="of-field"><div class="of-label">F. Término (compromiso)</div><div class="of-value mono" style="font-size:14px;">${fmt(o.fecha_termino)}</div></div>
       <div class="of-field"><div class="of-label">Logística</div><div class="of-value"><span class="estado-badge est-${o.msteel||'Pendiente'}">${o.msteel||'Pendiente'}</span></div></div>
     </div>
     <div class="sigs">
@@ -3904,15 +3912,15 @@ function planRender() {
   planRows = orders.filter(o =>
     (!q || [o.sku,o.area,o.of_mch,o.oc_cliente,o.cliente,o.descripcion1,planObs(o)].some(v => String(v||'').toLowerCase().includes(q))) &&
     (!fe || PLAN_EST[o.estado||'Pendiente']===fe) && (!fp || planPrio(o)===fp))
-    .sort((a,b) => (EST_ORD[a.estado||'Pendiente']-EST_ORD[b.estado||'Pendiente']) || (PRIO_ORD[planPrio(a)]-PRIO_ORD[planPrio(b)]) || String(a.fecha_entrega||'9999').localeCompare(String(b.fecha_entrega||'9999')));
+    .sort((a,b) => (EST_ORD[a.estado||'Pendiente']-EST_ORD[b.estado||'Pendiente']) || (PRIO_ORD[planPrio(a)]-PRIO_ORD[planPrio(b)]) || String(a.fecha_termino||'9999').localeCompare(String(b.fecha_termino||'9999')));
   document.getElementById('cnt-plan').textContent = `(${planRows.length})`;
   const st = 'border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:12px;';
   document.getElementById('plan-body').innerHTML = planRows.length ? planRows.map(o => {
-    const est = PLAN_EST[o.estado||'Pendiente'], pri = planPrio(o), late = o.fecha_entrega && o.fecha_entrega < hoy && o.estado!=='Entregado';
+    const est = PLAN_EST[o.estado||'Pendiente'], pri = planPrio(o), late = o.fecha_termino && o.fecha_termino < hoy && o.estado!=='Entregado';
     const pc = pri==='Alta'?'#dc2626':pri==='Media'?'#d97706':'#64748b';
     return `<tr>
       <td>${esc(o.sku)}</td><td>${esc(o.area)}</td><td>${esc(o.of_mch)}</td><td>${esc(o.oc_cliente)}</td><td>${esc(o.cliente)}</td><td>${esc(o.descripcion1)}</td><td>${o.cantidad??''}</td>
-      <td><input type="date" value="${o.fecha_entrega||''}" onchange="planSetFecha('${o.id}',this.value)" ${dis} style="${st}${late?'border-color:#dc2626;color:#dc2626;':''}"/></td>
+      <td><input type="date" value="${o.fecha_termino||''}" onchange="planSetFecha('${o.id}',this.value)" ${dis} style="${st}${late?'border-color:#dc2626;color:#dc2626;':''}"/></td>
       <td><select onchange="planSetEstado('${o.id}',this.value)" ${dis} class="estado-select est-${o.estado||'Pendiente'}">${['Pendiente','Parcial','Completado'].map(e=>`<option ${e===est?'selected':''}>${e}</option>`).join('')}</select></td>
       <td><select onchange="planSetExtra('${o.id}','prioridad',this.value);this.style.color=this.options[this.selectedIndex].dataset.c" ${dis} style="${st}font-weight:700;color:${pc};">${['Alta','Media','Baja'].map(p=>`<option data-c="${p==='Alta'?'#dc2626':p==='Media'?'#d97706':'#64748b'}" ${p===pri?'selected':''}>${p}</option>`).join('')}</select></td>
       <td><input type="text" value="${ea(planObs(o))}" placeholder="Observaciones…" onchange="planSetExtra('${o.id}','observaciones',this.value)" ${dis} style="${st}width:200px;"/></td></tr>`;
@@ -3920,7 +3928,7 @@ function planRender() {
 }
 const planOrd = id => orders.find(o => String(o.id)===String(id));
 function planSetEstado(id, ui) { const o = planOrd(id); if (!o) return; updateEstado(o.id, ui==='Completado' ? 'Entregado' : ui); setTimeout(planRender, 50); }
-function planSetFecha(id, v)   { const o = planOrd(id); if (!o) return; updateField(o.id, 'fecha_entrega', v); setTimeout(planRender, 50); }
+function planSetFecha(id, v)   { const o = planOrd(id); if (!o) return; updateField(o.id, 'fecha_termino', v); setTimeout(planRender, 50); }
 async function planSetExtra(id, field, val) {
   if (!tienePermiso('ordenes_fechas_estado')) { toast('Sin permiso para editar','error'); return; }
   const o = planOrd(id); if (!o || !sbClient) return;
@@ -3934,7 +3942,7 @@ async function planSetExtra(id, field, val) {
 function planExport() {
   if (!planRows.length) { toast('Sin datos','error'); return; }
   const h = ['SKU','Área','OF MCH','OC','Cliente','Descripción 1','Cantidad','Fecha compromiso','Estado','Prioridad','Observaciones'];
-  const data = planRows.map(o => [o.sku, o.area, o.of_mch, o.oc_cliente, o.cliente, o.descripcion1, o.cantidad, o.fecha_entrega ? fmt(o.fecha_entrega) : '', PLAN_EST[o.estado||'Pendiente'], planPrio(o), planObs(o)]);
+  const data = planRows.map(o => [o.sku, o.area, o.of_mch, o.oc_cliente, o.cliente, o.descripcion1, o.cantidad, o.fecha_termino ? fmt(o.fecha_termino) : '', PLAN_EST[o.estado||'Pendiente'], planPrio(o), planObs(o)]);
   dlXLSX(h, data, 'planificacion_msteel.xlsx', 'Planificación');
 }
 
@@ -3963,12 +3971,12 @@ async function ganttShow() {
 const G_AV = { 'Pendiente':0, 'Parcial':50, 'Entregado':100 };
 function ganttRows() {
   const est = document.getElementById('g-est').value;
-  return orders.filter(o => o.fecha && o.fecha_entrega && (!est || PLAN_EST[o.estado||'Pendiente']===est))
-    .map(o => ({ o, ini: o.fecha <= o.fecha_entrega ? o.fecha : o.fecha_entrega, fin: o.fecha_entrega }))
+  return orders.filter(o => o.fecha && o.fecha_termino && (!est || PLAN_EST[o.estado||'Pendiente']===est))
+    .map(o => ({ o, ini: o.fecha <= o.fecha_termino ? o.fecha : o.fecha_termino, fin: o.fecha_termino }))
     .sort((a,b) => a.ini.localeCompare(b.ini));
 }
 function ganttBarColor(o) {
-  if (o.estado!=='Entregado' && o.fecha_entrega < _iso(new Date())) return '#dc2626';
+  if (o.estado!=='Entregado' && o.fecha_termino < _iso(new Date())) return '#dc2626';
   return o.estado==='Entregado' ? '#16a34a' : o.estado==='Parcial' ? '#2563eb' : '#94a3b8';
 }
 function ganttRender() {
