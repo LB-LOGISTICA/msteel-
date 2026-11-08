@@ -3870,6 +3870,7 @@ function modExport(key) {
 let planExtra = {};   // orden_id -> { prioridad, observaciones }
 const PLAN_EST = { 'Pendiente':'Pendiente', 'Parcial':'Parcial', 'Entregado':'Completado' };   // valor en Órdenes -> etiqueta
 const PRIO_ORD = { 'Alta':0, 'Media':1, 'Baja':2 };
+const EST_ORD  = { 'Pendiente':0, 'Parcial':1, 'Entregado':2 };
 const planPrio = o => (planExtra[String(o.id)]||{}).prioridad || 'Media';
 const planObs  = o => (planExtra[String(o.id)]||{}).observaciones || '';
 let planRows = [];
@@ -3889,7 +3890,7 @@ async function planShow() {
       <select id="plan-est" onchange="planRender()" style="${inp}"><option value="">Todos los estados</option><option>Pendiente</option><option>Parcial</option><option>Completado</option></select>
       <select id="plan-pri" onchange="planRender()" style="${inp}"><option value="">Todas las prioridades</option><option>Alta</option><option>Media</option><option>Baja</option></select>
       <button class="btn-primary" onclick="planExport()">⬇ Exportar Excel</button></div>
-      <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Se llena automáticamente al subir órdenes. Estado y fecha compromiso se sincronizan con la hoja Órdenes. Orden: prioridad y luego fecha compromiso.</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Se llena automáticamente al subir órdenes. Estado y fecha compromiso se sincronizan con la hoja Órdenes. Orden: Pendientes primero, luego prioridad y fecha compromiso.</div>
       <div class="table-wrap"><table class="ord-tbl"><thead><tr>
         <th>SKU</th><th>Área</th><th>OF MCH</th><th>OC</th><th>Cliente</th><th>Descripción 1</th><th>Cantidad</th><th>Fecha compromiso</th><th>Estado</th><th>Prioridad</th><th>Observaciones</th>
       </tr></thead><tbody id="plan-body"></tbody></table></div>`;
@@ -3903,7 +3904,7 @@ function planRender() {
   planRows = orders.filter(o =>
     (!q || [o.sku,o.area,o.of_mch,o.oc_cliente,o.cliente,o.descripcion1,planObs(o)].some(v => String(v||'').toLowerCase().includes(q))) &&
     (!fe || PLAN_EST[o.estado||'Pendiente']===fe) && (!fp || planPrio(o)===fp))
-    .sort((a,b) => (PRIO_ORD[planPrio(a)]-PRIO_ORD[planPrio(b)]) || String(a.fecha_entrega||'9999').localeCompare(String(b.fecha_entrega||'9999')));
+    .sort((a,b) => (EST_ORD[a.estado||'Pendiente']-EST_ORD[b.estado||'Pendiente']) || (PRIO_ORD[planPrio(a)]-PRIO_ORD[planPrio(b)]) || String(a.fecha_entrega||'9999').localeCompare(String(b.fecha_entrega||'9999')));
   document.getElementById('cnt-plan').textContent = `(${planRows.length})`;
   const st = 'border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:12px;';
   document.getElementById('plan-body').innerHTML = planRows.length ? planRows.map(o => {
@@ -4036,13 +4037,13 @@ const otFrame = p => { const m = String(p||'').match(/MSF-MC-?(\d+)/i) || String
 const uniq = a => [...new Set(a.filter(Boolean))];
 
 async function otLoadAll() {
-  if (!sbClient) { otOperarios = OT_OP_DEF; otSupervisores = [{nombre:'MANUEL PINTO'}]; return; }
+  if (!sbClient) { otOperarios = OT_OP_DEF; otSupervisores = [{nombre:'Manuel Pinto'}]; return; }
   const [a,b,c] = await Promise.all([
     sbClient.from('ordenes_trabajo').select('*').order('created_at',{ascending:false}),
     sbClient.from('operarios').select('*').order('nombre'),
     sbClient.from('supervisores').select('*').order('nombre')]);
   if (a.error || b.error || c.error) toast('Error: '+(a.error||b.error||c.error).message+' (¿ejecutaste el SQL actualizado?)','error');
-  otList = a.data || []; otOperarios = (b.data&&b.data.length) ? b.data : OT_OP_DEF; otSupervisores = (c.data&&c.data.length) ? c.data : [{nombre:'MANUEL PINTO'}];
+  otList = a.data || []; otOperarios = (b.data&&b.data.length) ? b.data : OT_OP_DEF; otSupervisores = ((c.data&&c.data.length) ? c.data : [{nombre:'Manuel Pinto'}]).map(x => x.nombre==='MANUEL PINTO' ? {...x, nombre:'Manuel Pinto'} : x);
 }
 async function otShow() { await otLoadAll(); otRenderList(); }
 
@@ -4066,7 +4067,7 @@ function otRenderList() {
 function otNew() {
   const n = otList.reduce((m,r) => Math.max(m, parseInt(String(r.ot_numero||'').replace(/\D/g,''))||0), 0) + 1;
   otForm = { id:null, ot_numero:'OT-'+String(n).padStart(4,'0'), operario:'', cargo:'', skus:[], cliente:'', n_plano:'', of_interna:'', fecha_ingreso:'', fecha_termino:'',
-    supervisor:(otSupervisores[0]||{}).nombre||'MANUEL PINTO', herramientas:{}, tareas:[], hallazgos:[{desc:'',tiempo:'',sol:''},{desc:'',tiempo:'',sol:''}] };
+    supervisor:(otSupervisores[0]||{}).nombre||'Manuel Pinto', herramientas:{}, tareas:[], hallazgos:[{desc:'',tiempo:'',sol:''},{desc:'',tiempo:'',sol:''}] };
   otRenderForm();
 }
 function otEdit(id) {
@@ -4075,14 +4076,14 @@ function otEdit(id) {
 }
 function otFromRec(r) {
   return { id:r.id, ot_numero:r.ot_numero, operario:r.operario||'', cargo:r.cargo||'', skus:(r.skus_data||[]), cliente:r.cliente||'', n_plano:r.n_plano||'', of_interna:r.of_interna||'',
-    fecha_ingreso:r.fecha_ingreso||'', fecha_termino:r.fecha_termino||'', supervisor:r.supervisor||'', herramientas:r.herramientas||{}, tareas:r.tareas||[], hallazgos:r.hallazgos||[] };
+    fecha_ingreso:r.fecha_ingreso||'', fecha_termino:r.fecha_termino||'', supervisor:(r.supervisor==='MANUEL PINTO'?'Manuel Pinto':r.supervisor)||'', herramientas:r.herramientas||{}, tareas:r.tareas||[], hallazgos:r.hallazgos||[] };
 }
 function otSheetHTML(f, ed) {
   const t = (v, h) => ed ? h : `<span>${esc(v)}</span>`;
   const inp = (k, type) => t(f[k], `<input type="${type||'text'}" value="${ea(f[k])}" oninput="otForm.${k}=this.value"/>`);
   const cargoLbl = OT_LBL[f.cargo] || 'OPERARIO';
   const tpl = OT_HERR[otTpl(f.cargo)];
-  const opsOpt = OT_CARGOS.map(c => { const l = otOperarios.filter(o=>o.cargo===c); return l.length ? `<optgroup label="${c}">${l.map(o=>`<option value="${ea(o.nombre)}" ${o.nombre===f.operario?'selected':''}>${esc(o.nombre)}</option>`).join('')}</optgroup>` : ''; }).join('');
+  const opsOpt = [...otOperarios].sort((x,y)=>x.nombre.localeCompare(y.nombre)).map(o=>`<option value="${ea(o.nombre)}" ${o.nombre===f.operario?'selected':''}>${esc(o.nombre)}</option>`).join('');
   const tot = f.tareas.reduce((s,x)=>s+(+x.total||0),0), dia = f.tareas.reduce((s,x)=>s+(+x.diaria||0),0);
   const mini = (fn, tip) => ed ? `<button class="mini noprint" type="button" title="${tip}" onclick="${fn}">＋</button>` : '';
   return `<div class="ots"><table>
@@ -4090,7 +4091,7 @@ function otSheetHTML(f, ed) {
     <tr><td colspan="2" style="text-align:center;border:none;"><img src="${OT_LOGO1}" style="height:70px"></td><td colspan="2" class="ttl">${otTitle(f.cargo)}<div style="font-size:12px;font-weight:400;">N° ${esc(f.ot_numero)}</div></td><td colspan="2" style="text-align:center;border:none;"><img src="${OT_LOGO2}" style="height:70px"></td></tr>
     <tr><td class="lbl">NOMBRE CLIENTE</td><td colspan="2">${inp('cliente')}</td><td class="lbl">FECHA INGRESO</td><td colspan="2">${inp('fecha_ingreso','date').replace(/<span>(.*?)<\/span>/, (m,x)=>`<span>${f.fecha_ingreso?fmt(f.fecha_ingreso):''}</span>`)}</td></tr>
     <tr><td class="lbl">N° PLANO</td><td colspan="2">${inp('n_plano')}</td><td class="lbl">FECHA TERMINO</td><td colspan="2">${inp('fecha_termino','date').replace(/<span>(.*?)<\/span>/, (m,x)=>`<span>${f.fecha_termino?fmt(f.fecha_termino):''}</span>`)}</td></tr>
-    <tr><td class="lbl">OF INTERNA</td><td colspan="2">${inp('of_interna')}</td><td class="lbl">${cargoLbl}</td><td colspan="2">${ed?`<div style="display:flex;"><select onchange="otPickOp(this.value)"><option value="">— Seleccionar —</option>${opsOpt}</select>${mini('otToggleAdd(\'op\')','Agregar operario')}</div>
+    <tr><td class="lbl">OF INTERNA</td><td colspan="2">${inp('of_interna')}</td><td class="lbl">OPERARIO</td><td colspan="2">${ed?`<div style="display:flex;"><select onchange="otPickOp(this.value)"><option value="">— Seleccionar —</option>${opsOpt}</select>${mini('otToggleAdd(\'op\')','Agregar operario')}</div>
       ${f._addOp?`<div class="noprint" style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;"><input type="text" id="ot-new-op" placeholder="Nombre" style="flex:1;min-width:90px;"/><select id="ot-new-cargo" style="width:90px;">${OT_CARGOS.map(c=>`<option>${c}</option>`).join('')}</select><button class="mini" onclick="otAddOp()">Guardar</button></div>`:''}`:esc(f.operario)}</td></tr>
     <tr><td colspan="6" class="sec">DESCRIPCION HERRAMIENTAS Y ELEMENTOS PROTECCION PERSONAL</td></tr>
     <tr>${tpl.map(col=>`<td colspan="2" class="chk" style="vertical-align:top;">${col.map(n=>`<label><input type="checkbox" ${f.herramientas[n]?'checked':''} ${ed?'':'disabled'} onchange="otForm.herramientas['${n}']=this.checked"/> ${n}</label>`).join('')}</td>`).join('')}</tr>
@@ -4123,6 +4124,8 @@ function otRenderForm() {
         <input id="ot-sku" list="dl-skus" placeholder="Ej: IMPU-1486" onkeydown="if(event.key==='Enter')otAddSku()" style="border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:13px;width:220px;outline:none;text-transform:uppercase;"/>
         <datalist id="dl-skus">${skuList.map(s=>`<option value="${ea(s)}">`).join('')}</datalist>
         <button class="btn-primary" onclick="otAddSku()">Agregar</button>
+        <span style="margin-left:10px;font-size:12px;font-weight:700;">Función (título):</span>
+        <select onchange="otPickFuncion(this.value)" style="border:1px solid var(--border);border-radius:20px;padding:6px 12px;font-size:13px;outline:none;"><option value="">— Elegir —</option>${OT_CARGOS.map(c=>`<option value="${c}" ${c===f.cargo?'selected':''}>${OT_LBL[c]==='OPERARIO'?'Otros':OT_LBL[c].charAt(0)+OT_LBL[c].slice(1).toLowerCase()}</option>`).join('')}</select>
         ${f.skus.map((s,i)=>`<span style="background:#e0e7ff;color:#3730a3;padding:3px 10px;border-radius:14px;font-size:11px;font-weight:600;">${esc(s.sku)} · ${esc(s.plano)} <a style="cursor:pointer;margin-left:4px;" onclick="otDelSku(${i})">✕</a></span>`).join('')}</div></div>
     <div style="overflow-x:auto;">${otSheetHTML(f,true)}</div>`;
 }
@@ -4131,24 +4134,25 @@ function otTotales() {
   document.getElementById('ot-tot').innerHTML = `<b>${tot}</b>`; document.getElementById('ot-dia').innerHTML = `<b>${dia}</b>`;
   document.getElementById('ot-av').innerHTML = `<b>${tot?Math.round(dia/tot*100):0}%</b>`;
 }
-function otPickOp(nombre) {
-  const o = otOperarios.find(x => x.nombre===nombre), prev = otTpl(otForm.cargo);
-  otForm.operario = nombre; otForm.cargo = o ? o.cargo : '';
-  if (otTpl(otForm.cargo)!==prev) otForm.herramientas = {};
+function otPickOp(nombre) { otForm.operario = nombre; otRenderForm(); }
+function otPickFuncion(c) {
+  const prev = otTpl(otForm.cargo);
+  otForm.cargo = c;
+  if (otTpl(c)!==prev) otForm.herramientas = {};
   otRenderForm();
 }
 function otToggleAdd(w) { otForm[w==='op'?'_addOp':'_addSup'] = !otForm[w==='op'?'_addOp':'_addSup']; otRenderForm(); }
 async function otAddOp() {
-  const nombre = document.getElementById('ot-new-op').value.trim().toUpperCase(), cargo = document.getElementById('ot-new-cargo').value;
+  const nombre = document.getElementById('ot-new-op').value.trim(), cargo = document.getElementById('ot-new-cargo').value;
   if (!nombre) { toast('Escribe el nombre','error'); return; }
   if (otOperarios.some(o=>o.nombre===nombre)) { toast('Ya existe','error'); return; }
   if (sbClient) { const { error } = await sbClient.from('operarios').insert([{nombre,cargo}]); if (error) { toast('Error: '+error.message,'error'); return; } }
   otOperarios = [...otOperarios, {nombre,cargo}];
-  otForm._addOp = false; otForm.operario = nombre; otForm.cargo = cargo; otForm.herramientas = {};
+  otForm._addOp = false; otForm.operario = nombre;
   logMovimiento('Órdenes de Trabajo','Agregar operario',nombre+' ('+cargo+')'); otRenderForm();
 }
 async function otAddSup() {
-  const nombre = document.getElementById('ot-new-sup').value.trim().toUpperCase();
+  const nombre = document.getElementById('ot-new-sup').value.trim();
   if (!nombre) { toast('Escribe el nombre','error'); return; }
   if (otSupervisores.some(s=>s.nombre===nombre)) { toast('Ya existe','error'); return; }
   if (sbClient) { const { error } = await sbClient.from('supervisores').insert([{nombre}]); if (error) { toast('Error: '+error.message,'error'); return; } }
