@@ -1,0 +1,33 @@
+{
+  "id": "./msteel.html",
+  "name": "MSTEEL — Órdenes de Fabricación",
+  "short_name": "MSTEEL",
+  "description": "Órdenes de fabricación, planificación, Gantt y control de horas — Multotec Steel",
+  "start_url": "./msteel.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "lang": "es",
+  "background_color": "#0F6E56",
+  "theme_color": "#0F6E56",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
