@@ -433,6 +433,8 @@ body.dark-bg .ord-toolbar span,body.dark-bg .ord-toolbar label,body.dark-bg .pag
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       <span class="nav-txt">Cerrar sesión</span>
     </button>
+    <button class="hdr-btn" title="Avisos de vencimiento" onclick="avisosAbrir()">🔔 <span class="nav-txt">Avisos <span id="av-count" style="display:none;background:#ef4444;color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;margin-left:4px;"></span></span></button>
+    <button class="hdr-btn" id="btn-respaldo" style="display:none;" title="Respaldo completo (Excel)" onclick="respaldoCompleto()">💾 <span class="nav-txt">Respaldo</span></button>
     <button class="hdr-btn" id="btn-install" title="Instalar app" onclick="instalarApp()">📲 <span class="nav-txt">Instalar app</span></button>
     <button class="hdr-btn" title="Contraer / expandir menú" onclick="toggleSidebar()">↔ <span class="nav-txt">Contraer menú</span></button>
   </div>
@@ -1077,10 +1079,13 @@ async function processSingle(file) {
   setProgress(10, `Leyendo ${file.name}…`);
   try {
     const rows = await extractRows(file, p => setProgress(10 + p*80, ''));
-    if (!rows.length) { toast('No se encontraron filas', 'error'); showProgress(false); return; }
-    setProgress(92, 'Guardando…');
+    showProgress(false);
+    if (!rows.length) { toast('No se encontraron filas en el PDF', 'error'); return; }
+    const sel = await previewImport([{ file, rows }]);
+    if (!sel) { toast('Importación cancelada'); return; }
+    showProgress(true); setProgress(92, 'Guardando…');
     let saved=0, dupes=0;
-    for (const r of rows) { const res = await saveOrder(r); res==='duplicate' ? dupes++ : saved++; }
+    for (const x of sel) { const res = await saveOrder(x.row); res==='duplicate' ? dupes++ : saved++; }
     setProgress(100, '¡Listo!');
     if (saved===0 && dupes>0) toast(`⚠️ ${dupes} fila(s) ya existían — no se importó nada`, 'error');
     else if (dupes>0) toast(`✓ ${saved} importada(s) · ${dupes} duplicada(s) ignorada(s)`,'');
@@ -1095,45 +1100,37 @@ async function processBulk(files) {
   const list  = document.getElementById('bulk-list');
   const sumEl = document.getElementById('bulk-summary');
   panel.style.display = 'block'; list.innerHTML = '';
-
   const items = files.map((f,i) => {
     const div = document.createElement('div');
     div.className = 'bulk-item';
-    div.innerHTML = `
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" style="flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-      <span class="fname" title="${f.name}">${f.name}</span>
+    div.innerHTML = `<span class="fname" title="${f.name}">${f.name}</span>
       <div class="bulk-progress"><div class="bulk-progress-bar" id="bp-${i}"></div></div>
-      <span class="fstatus waiting" id="bs-${i}">En cola</span>
-      <span class="frows" id="br-${i}"></span>`;
+      <span class="fstatus waiting" id="bs-${i}">En cola</span><span class="frows" id="br-${i}"></span>`;
     list.appendChild(div);
     return { file:f, idx:i };
   });
-
-  let done=0, errors=0, totalRows=0;
+  let errors = 0; const parsed = [];
   for (const { file, idx } of items) {
-    const sEl = document.getElementById('bs-'+idx);
-    const pEl = document.getElementById('bp-'+idx);
-    const rEl = document.getElementById('br-'+idx);
-    sEl.textContent='Procesando'; sEl.className='fstatus running';
-    sumEl.textContent=`${done}/${files.length} completados`;
+    const sEl = document.getElementById('bs-'+idx), pEl = document.getElementById('bp-'+idx), rEl = document.getElementById('br-'+idx);
+    sEl.textContent='Leyendo'; sEl.className='fstatus running';
+    sumEl.textContent=`${idx}/${files.length} leídos`;
     try {
       const rows = await extractRows(file, p => { pEl.style.width=(p*100)+'%'; });
       if (!rows.length) throw new Error('Sin filas reconocidas');
-      let saved=0, dupes=0;
-      for (const r of rows) { const res = await saveOrder(r); res==='duplicate' ? dupes++ : saved++; }
-      totalRows += saved; done++;
-      sEl.textContent='✓ Listo'; sEl.className='fstatus done';
-      rEl.textContent = saved+' nueva(s)'+(dupes>0?' · '+dupes+' dup.':'');
-      pEl.style.width='100%';
-    } catch(e) {
-      errors++;
-      sEl.textContent='✗ Error'; sEl.className='fstatus err';
-      rEl.textContent=e.message.slice(0,28);
-    }
-    sumEl.textContent=`${done+errors}/${files.length} — ${totalRows} filas nuevas`;
+      parsed.push({ file, rows, idx });
+      sEl.textContent='Leído'; sEl.className='fstatus done'; rEl.textContent = rows.length+' fila(s)'; pEl.style.width='100%';
+    } catch(e) { errors++; sEl.textContent='✗ Error'; sEl.className='fstatus err'; rEl.textContent=e.message.slice(0,28); }
   }
-  toast(`Masivo: ${done} archivos, ${totalRows} filas nuevas${errors?' ('+errors+' errores)':''}`, errors?'':'success');
-  if (totalRows>0) logMovimiento('Órdenes', 'Importar PDF masivo', `${done} archivo(s) → ${totalRows} fila(s) nueva(s)`);
+  sumEl.textContent = `${parsed.length}/${files.length} leídos${errors?' · '+errors+' con error':''} — revisa y confirma`;
+  if (!parsed.length) { toast('Ningún PDF se pudo leer','error'); return; }
+  const sel = await previewImport(parsed);
+  if (!sel) { toast('Importación cancelada'); sumEl.textContent = 'Cancelado'; return; }
+  let totalRows = 0; const porArchivo = {};
+  for (const x of sel) { const res = await saveOrder(x.row); if (res!=='duplicate') { totalRows++; porArchivo[x.file.name] = (porArchivo[x.file.name]||0)+1; } }
+  parsed.forEach(pf => { const r = document.getElementById('br-'+pf.idx); if (r) r.textContent = (porArchivo[pf.file.name]||0)+' nueva(s)'; });
+  sumEl.textContent = `${parsed.length}/${files.length} archivos — ${totalRows} filas nuevas`;
+  toast(`Masivo: ${parsed.length} archivos, ${totalRows} filas nuevas${errors?' ('+errors+' errores)':''}`, errors?'':'success');
+  if (totalRows>0) logMovimiento('Órdenes', 'Importar PDF masivo', `${parsed.length} archivo(s) → ${totalRows} fila(s) nueva(s)`);
 }
 
 async function extractRows(file, onProgress) {
@@ -2879,6 +2876,7 @@ function checkVencidasNotify() {
   // Update nav tab badge
   const badge = document.getElementById('alert-badge');
   if (badge) { badge.textContent = alertas>0?alertas:''; badge.style.display=alertas>0?'inline':'none'; }
+  if (typeof avisosActualizar==='function') avisosActualizar();
 }
 
 // ══════════════════════════════════════════════════════
@@ -2893,19 +2891,22 @@ function checkVencidasNotify() {
 function tienePermiso(accion) {
   if (!currentUser) return false;
   const rol = currentUser.rol;
+  const editor = rol==='ADMIN' || rol==='EDITOR_LIMITADO' || rol==='SUPERVISOR';
   switch (accion) {
-    case 'ordenes_fechas_estado': return rol==='ADMIN' || rol==='EDITOR_LIMITADO';
-    case 'ordenes_msteel':        return rol==='ADMIN' || rol==='EDITOR_LIMITADO';
-    case 'logistica_editar':      return rol==='ADMIN' || rol==='EDITOR_LIMITADO';
+    case 'ordenes_fechas_estado': return editor;
+    case 'ordenes_msteel':        return editor;
+    case 'logistica_editar':      return editor;
     case 'eliminar':              return rol==='ADMIN' || rol==='EDITOR_LIMITADO';
-    case 'subir':                 return rol==='ADMIN' || rol==='EDITOR_LIMITADO';
+    case 'subir':                 return editor;
     case 'ver_movimientos':       return rol==='ADMIN';
+    case 'aprobar_horas':         return rol==='ADMIN' || rol==='SUPERVISOR';
+    case 'horas_registrar':       return editor || rol==='OPERARIO';
     default:                      return false;
   }
 }
 
 function rolLabel(rol) {
-  return rol==='ADMIN' ? 'Administrador' : rol==='EDITOR_LIMITADO' ? 'Editor limitado' : rol==='LECTURA' ? 'Solo lectura' : '';
+  return ({ ADMIN:'Administrador', EDITOR_LIMITADO:'Editor limitado', SUPERVISOR:'Supervisor', OPERARIO:'Operario', LECTURA:'Solo lectura' })[rol] || '';
 }
 
 function mostrarLogin() {
@@ -2936,27 +2937,40 @@ async function intentarLogin() {
     } else { errEl.textContent = 'Sin conexión a la base de datos'; return; }
   }
   try {
-    const { data, error } = await sbClient.rpc('verificar_login', { p_usuario: usuario, p_password: password });
-    if (error) { errEl.textContent = 'Error de conexión: ' + error.message; return; }
-    if (!data || !data.length) { errEl.textContent = 'Usuario o contraseña incorrectos'; return; }
-    currentUser = { usuario: data[0].usuario, rol: data[0].rol };
+    let rol = null, segura = false, operario = null, nombre = usuario;
+    // 1) acceso seguro (Supabase Auth): usuario@msteel.app
+    const a = await sbClient.auth.signInWithPassword({ email: usuario.toLowerCase()+'@msteel.app', password });
+    if (!a.error && a.data && a.data.session) {
+      const r = await sbClient.rpc('mi_rol');
+      if (r.error || !r.data) { await sbClient.auth.signOut(); errEl.textContent = 'Tu usuario seguro no tiene rol asignado (falta ejecutar el SQL paso 1).'; return; }
+      rol = r.data; segura = true;
+      const o = await sbClient.rpc('mi_operario'); operario = (o && o.data) || null;
+    } else {
+      // 2) método anterior (se apaga al ejecutar el SQL paso 2)
+      const { data, error } = await sbClient.rpc('verificar_login', { p_usuario: usuario, p_password: password });
+      if (error) { errEl.textContent = /permission|denied/i.test(error.message) ? 'Usuario o contraseña incorrectos' : 'Error de conexión: ' + error.message; return; }
+      if (!data || !data.length) { errEl.textContent = 'Usuario o contraseña incorrectos'; return; }
+      rol = data[0].rol; nombre = data[0].usuario;
+    }
+    currentUser = { usuario: nombre, rol, segura, operario };
     localStorage.setItem('msteel_user', JSON.stringify(currentUser));
     ocultarLogin();
     aplicarPermisos();
-    // Asegurar que Órdenes quede activo al entrar
-    const primerTab = document.querySelector('.nav-tab[onclick*="\'ordenes\'"]');
-    if (primerTab) showPage('ordenes', primerTab);
-    // Iniciar carga de datos
+    const primerTab = document.querySelector(rol==='OPERARIO' ? '.nav-tab[onclick*="\'control_horas\'"]' : '.nav-tab[onclick*="\'ordenes\'"]');
+    if (primerTab) showPage(rol==='OPERARIO' ? 'control_horas' : 'ordenes', primerTab);
     loadOrders();
     loadPletinas();
     startAutoRefresh();
     toast(`Bienvenido, ${currentUser.usuario}`, 'success');
-    logMovimiento('Sistema', 'Inicio de sesión', `${currentUser.usuario} (${rolLabel(currentUser.rol)})`);
+    if (!segura) toast('⚠ Sesión sin protección: pide crear tu usuario seguro', 'error');
+    logMovimiento('Sistema', 'Inicio de sesión', `${currentUser.usuario} (${rolLabel(currentUser.rol)})${segura?' 🔒':''}`);
+    respaldoRecordatorio();
   } catch(e) { errEl.textContent = 'Error: ' + e.message; }
 }
 
 function cerrarSesion() {
   if (currentUser) logMovimiento('Sistema', 'Cierre de sesión', currentUser.usuario);
+  try { sbClient && sbClient.auth.signOut(); } catch(e) {}
   currentUser = null;
   localStorage.removeItem('msteel_user');
   mostrarLogin();
@@ -2974,7 +2988,14 @@ function aplicarPermisos() {
   if (upZone) upZone.style.display = puedeSubir ? '' : 'none';
 
   const badge = document.getElementById('user-badge');
-  if (badge && currentUser) badge.textContent = `${currentUser.usuario} · ${rolLabel(rol)}`;
+  if (badge && currentUser) badge.textContent = `${currentUser.usuario} · ${rolLabel(rol)}${currentUser.segura?' 🔒':''}`;
+  const bkp = document.getElementById('btn-respaldo'); if (bkp) bkp.style.display = (rol==='ADMIN') ? '' : 'none';
+  // El operario solo ve Órdenes de Trabajo y Control de Horas
+  document.querySelectorAll('.nav-tab').forEach(b => { const m = (b.getAttribute('onclick')||'').match(/showPage\('(\w+)'/); if (!m) return;
+    if (rol==='OPERARIO') b.style.display = ['ordenes_trabajo','control_horas'].includes(m[1]) ? '' : 'none';
+    else if (!['data','movimientos'].includes(m[1])) b.style.display = ''; });
+  if (rol==='OPERARIO' && !['page-ordenes_trabajo','page-control_horas'].includes(document.querySelector('.page.active')?.id)) showPage('control_horas', document.querySelector('.nav-tab[onclick*="\'control_horas\'"]'));
+  avisosActualizar && orders.length && avisosActualizar();
 
   const activeId = document.querySelector('.page.active')?.id;
   if (rol!=='ADMIN' && (activeId==='page-data'||activeId==='page-movimientos')) {
@@ -3572,9 +3593,8 @@ window.addEventListener('load', () => {
   try {
     const saved = JSON.parse(localStorage.getItem('msteel_user')||'null');
     if (saved && saved.usuario && saved.rol) {
-      currentUser = saved;
-      ocultarLogin();
-      aplicarPermisos();
+      const vigente = (!saved.segura || !sbClient) ? Promise.resolve(true) : sbClient.auth.getSession().then(r => !!(r.data && r.data.session));
+      vigente.then(ok => { if (ok) { currentUser = saved; ocultarLogin(); aplicarPermisos(); } else { localStorage.removeItem('msteel_user'); mostrarLogin(); } });
     } else {
       mostrarLogin();
     }
@@ -3916,10 +3936,11 @@ const ESTADO_COL = {'Pendiente':'#94a3b8','En curso':'#2563eb','Terminada':'#16a
 const MODS = {
   control_horas: { table:'control_horas', icon:'⏱', title:'Control de Horas Efectivas', file:'control_horas_msteel', df:'fecha',
     fields:[
-      {k:'fecha',l:'Fecha',t:'date',req:1,d:'hoy'},{k:'operario',l:'Operario',t:'operario',req:1},{k:'ot_numero',l:'N° OT'},
+      {k:'fecha',l:'Fecha',t:'date',req:1,d:'hoy'},{k:'operario',l:'Operario',t:'operario',req:1},{k:'ot_numero',l:'N° OT',t:'ot'},
       {k:'actividad',l:'Actividad'},{k:'hora_inicio',l:'Hora inicio',t:'time',req:1},{k:'hora_fin',l:'Hora fin',t:'time',req:1},
       {k:'horas_paradas',l:'Horas paradas',t:'number',d:0},{k:'motivo_parada',l:'Motivo parada'},
       {k:'horas_efectivas',l:'Horas efectivas',t:'number',ro:1},
+      {k:'aprobado',l:'Aprobación',t:'aprob',ro:1,hideform:1},
       {k:'observaciones',l:'Observaciones',t:'textarea',nolist:1}] }
 };
 const modData = { control_horas:[] };
@@ -3970,18 +3991,21 @@ async function modShow(key) {
         <button class="btn-primary" onclick="modOpen('${key}')" style="background:#0F6E56;" data-edit>＋ Nuevo</button>
         <button class="btn-primary" onclick="modExport('${key}')">⬇ Exportar Excel</button>
       </div>
-      ${key==='control_horas'?'<div id="sum-control_horas" style="margin-bottom:1rem;"></div>':''}
+      ${key==='control_horas'?'<div id="cap-control_horas" style="margin-bottom:1rem;"></div><div id="sum-control_horas" style="margin-bottom:1rem;"></div>':''}
       <div class="table-wrap"><table class="ord-tbl"><thead><tr>
         ${m.fields.filter(f=>!f.nolist).map(f=>`<th>${f.l}</th>`).join('')}<th>Acciones</th></tr></thead>
         <tbody id="body-${key}"></tbody></table></div>`;
   }
   await modLoad(key);
+  if (key==='control_horas' && typeof otList!=='undefined' && !otList.length) await otLoadAll();
   modRender(key);
 }
 function modCell(f, v) {
+  if (f.t==='aprob') return v ? '<span style="color:#16a34a;font-weight:700;">✅ Aprobada</span>' : '<span style="color:#d97706;">⏳ Pendiente</span>';
   if (v===null||v===undefined||v==='') return '—';
   if (f.t==='date') return fmt(v);
   if (f.t==='time') return String(v).slice(0,5);
+  if (f.t==='aprob') return v ? '<span style="color:#16a34a;font-weight:700;">✅ Aprobada</span>' : '<span style="color:#d97706;">⏳ Pendiente</span>';
   if (f.k==='avance') return `<div style="min-width:70px;background:#e2e8f0;border-radius:6px;overflow:hidden;position:relative;height:16px;"><div style="width:${Math.min(100,+v)}%;background:#1D9E75;height:100%;"></div><span style="position:absolute;inset:0;text-align:center;font-size:10px;line-height:16px;font-weight:700;">${v}%</span></div>`;
   if (f.k==='estado') return `<span style="background:${ESTADO_COL[v]||'#94a3b8'};color:#fff;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600;">${esc(v)}</span>`;
   if (f.k==='prioridad') return `<b style="color:${v==='Alta'?'#dc2626':v==='Media'?'#d97706':'#64748b'}">${esc(v)}</b>`;
@@ -3995,16 +4019,17 @@ function modRender(key) {
     (!q || m.fields.some(f => String(r[f.k]??'').toLowerCase().includes(q))) &&
     (!d1 || (r[m.df]||'') >= d1) && (!d2 || (r[m.df]||'') <= d2) &&
     (!op || String(r.operario||'').toLowerCase().includes(op)));
+  if (key==='control_horas' && currentUser?.rol==='OPERARIO') rows = rows.filter(r => r.operario && r.operario===currentUser.operario);
   rows.sort((a,b) => String(b[m.df]||'').localeCompare(String(a[m.df]||'')));
   modRows[key] = rows;
   document.getElementById('cnt-'+key).textContent = `(${rows.length})`;
-  const cols = m.fields.filter(f=>!f.nolist), ce = tienePermiso('subir'), cd = tienePermiso('eliminar');
+  const cols = m.fields.filter(f=>!f.nolist), ce = tienePermiso(key==='control_horas' ? 'horas_registrar' : 'subir'), cd = tienePermiso('eliminar'), ca = tienePermiso('aprobar_horas'), esAdm = currentUser?.rol==='ADMIN';
   document.getElementById('body-'+key).innerHTML = rows.length ? rows.map(r => `<tr>
     ${cols.map(f=>`<td>${modCell(f,r[f.k])}</td>`).join('')}
-    <td style="white-space:nowrap;">${ce?`<button onclick="modOpen('${key}','${r.id}')" title="Editar" style="border:none;background:none;cursor:pointer;">✏️</button>`:''}${cd?`<button onclick="modDel('${key}','${r.id}')" title="Eliminar" style="border:none;background:none;cursor:pointer;">🗑</button>`:''}</td></tr>`).join('')
+    <td style="white-space:nowrap;">${key==='control_horas'&&ca?`<button onclick="modAprobar('${r.id}',${r.aprobado?'false':'true'})" title="${r.aprobado?'Quitar aprobación':'Aprobar'}" style="border:none;background:none;cursor:pointer;">${r.aprobado?'↩':'✔'}</button>`:''}${ce&&!(key==='control_horas'&&r.aprobado&&!esAdm)?`<button onclick="modOpen('${key}','${r.id}')" title="Editar" style="border:none;background:none;cursor:pointer;">✏️</button>`:''}${cd&&!(key==='control_horas'&&r.aprobado&&!esAdm)?`<button onclick="modDel('${key}','${r.id}')" title="Eliminar" style="border:none;background:none;cursor:pointer;">🗑</button>`:''}</td></tr>`).join('')
     : `<tr><td colspan="${cols.length+1}"><div class="empty-state"><p>Sin registros</p></div></td></tr>`;
   document.querySelectorAll(`#page-${key} [data-edit]`).forEach(b => b.style.display = ce ? '' : 'none');
-  if (key==='control_horas') horasResumen(rows);
+  if (key==='control_horas') { horasResumen(rows); capRender(); }
 }
 function horasResumen(rows) {
   const g = {};
@@ -4018,14 +4043,17 @@ function horasResumen(rows) {
 
 // ---- Formulario (modal) ----
 function modOpen(key, id) {
-  if (!tienePermiso('subir')) { toast('Sin permiso para editar','error'); return; }
+  if (!tienePermiso(key==='control_horas' ? 'horas_registrar' : 'subir')) { toast('Sin permiso para editar','error'); return; }
+  if (key==='control_horas' && currentUser?.rol==='OPERARIO' && !currentUser.operario) { toast('Tu usuario no está asociado a un operario. Pide al administrador que lo vincule.','error'); return; }
   const m = MODS[key], rec = id ? modData[key].find(r => String(r.id)===String(id)) : null;
   modEdit = { key, id: id||null };
   const hoy = _iso(new Date());
   const ops = [...new Set([...modData.control_horas.map(r=>r.operario), ...(typeof otOperarios!=='undefined'?otOperarios.map(o=>o.nombre):[])].filter(Boolean))];
   const ofs = [...new Set((typeof orders!=='undefined'?orders:[]).map(o=>o.of_interna).filter(Boolean))];
   const fld = f => {
+    if (f.hideform) return '';
     let v = rec ? rec[f.k] : (f.d==='hoy' ? hoy : f.d);
+    if (key==='control_horas' && f.k==='operario' && currentUser?.rol==='OPERARIO') v = currentUser.operario;
     
     v = v ?? ''; if (f.t==='time') v = String(v).slice(0,5);
     const st = 'width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:13px;';
@@ -4033,7 +4061,8 @@ function modOpen(key, id) {
     if (f.t==='select') inp = `<select id="mf-${f.k}" style="${st}">${f.o.map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select>`;
     else if (f.t==='textarea') inp = `<textarea id="mf-${f.k}" rows="2" style="${st}">${esc(v)}</textarea>`;
     else if (f.t==='of') inp = `<input id="mf-${f.k}" list="dl-of" value="${ea(v)}" onchange="modAutofill(this.value)" style="${st}"/>`;
-    else if (f.t==='operario') inp = `<input id="mf-${f.k}" list="dl-operarios" value="${ea(v)}" style="${st}"/>`;
+    else if (f.t==='operario') inp = `<input id="mf-${f.k}" list="dl-operarios" value="${ea(v)}" ${key==='control_horas'&&currentUser?.rol==='OPERARIO'?'readonly':''} style="${st}"/>`;
+    else if (f.t==='ot') inp = `<input id="mf-${f.k}" list="dl-ots" value="${ea(v)}" placeholder="Elige o escribe la OT" onchange="modAutofillOT(this.value)" style="${st}"/>`;
     else inp = `<input id="mf-${f.k}" type="${f.t||'text'}" ${f.t==='number'?'step="any"':''} ${f.ro?'readonly placeholder="(automático)"':''} value="${ea(v)}" style="${st}${f.ro?'background:#f1f5f9;':''}"/>`;
     return `<label style="font-size:11px;font-weight:600;color:var(--text2);${f.t==='textarea'?'grid-column:1/-1;':''}">${f.l}${f.req?' *':''}${inp}</label>`;
   };
@@ -4043,6 +4072,7 @@ function modOpen(key, id) {
     <h3 style="margin-bottom:12px;">${m.icon} ${id?'Editar':'Nuevo'} — ${m.title}</h3>
     <datalist id="dl-of">${ofs.map(o=>`<option value="${ea(o)}">`).join('')}</datalist>
     <datalist id="dl-operarios">${ops.map(o=>`<option value="${ea(o)}">`).join('')}</datalist>
+    <datalist id="dl-ots">${(typeof otList!=='undefined'?otList:[]).map(o=>`<option value="${ea(o.ot_numero)}">${ea((o.operario||'')+' · '+(o.cliente||''))}</option>`).join('')}</datalist>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${m.fields.map(fld).join('')}</div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
       <button class="btn-primary" style="background:#94a3b8;" onclick="modClose()">Cancelar</button>
@@ -4050,6 +4080,18 @@ function modOpen(key, id) {
   ov.style.display = 'flex';
 }
 function modClose() { const ov = document.getElementById('mod-ov'); if (ov) ov.style.display='none'; modEdit = null; }
+function modAutofillOT(v) {
+  const o = (typeof otList!=='undefined'?otList:[]).find(x => x.ot_numero===v); if (!o) return;
+  const set = (k,val) => { const e = document.getElementById('mf-'+k); if (e && !e.value) e.value = val ?? ''; };
+  set('operario', o.operario); set('actividad', ((o.tareas||[]).find(t=>t.desc)||{}).desc);
+}
+async function modAprobar(id, val) {
+  if (!tienePermiso('aprobar_horas')) { toast('Sin permiso para aprobar','error'); return; }
+  const { error } = await sbClient.from('control_horas').update({ aprobado: val, aprobado_por: val ? currentUser.usuario : null, aprobado_fecha: val ? new Date().toISOString() : null }).eq('id', id);
+  if (error) { toast('Error: '+error.message+' (¿ejecutaste el SQL paso 1?)','error'); return; }
+  logMovimiento('Control de Horas', val?'Aprobar':'Quitar aprobación', 'id '+id);
+  await modLoad('control_horas'); modRender('control_horas');
+}
 function modAutofill(v) {
   const o = (typeof orders!=='undefined'?orders:[]).find(x => x.of_interna===v); if (!o) return;
   const set = (k,val) => { const e = document.getElementById('mf-'+k); if (e && !e.value) e.value = val ?? ''; };
@@ -4064,7 +4106,7 @@ async function modSave() {
     if (f.req && !v) { toast('Falta: '+f.l,'error'); return; }
     row[f.k] = v==='' ? null : (f.t==='number' ? +v : v);
   }
-  if (key==='control_horas') row.horas_efectivas = calcHoras(row.hora_inicio,row.hora_fin,row.horas_paradas);
+  if (key==='control_horas') { row.horas_efectivas = calcHoras(row.hora_inicio,row.hora_fin,row.horas_paradas); if (currentUser?.rol==='OPERARIO') row.operario = currentUser.operario; }
   const q = id ? sbClient.from(m.table).update(row).eq('id',id) : sbClient.from(m.table).insert([row]);
   const { error } = await q;
   if (error) { toast('Error: '+error.message,'error'); return; }
@@ -4085,7 +4127,7 @@ function modExport(key) {
   const m = MODS[key], rows = modRows[key] || [];
   if (!rows.length) { toast('Sin datos','error'); return; }
   const h = m.fields.map(f=>f.l);
-  const data = rows.map(r => m.fields.map(f => f.t==='date' ? fmt(r[f.k]).replace('—','') : f.t==='time' ? String(r[f.k]||'').slice(0,5) : (r[f.k]??'')));
+  const data = rows.map(r => m.fields.map(f => f.t==='aprob' ? (r[f.k]?'Aprobada':'Pendiente') : f.t==='date' ? fmt(r[f.k]).replace('—','') : f.t==='time' ? String(r[f.k]||'').slice(0,5) : (r[f.k]??'')));
   const extra = key==='control_horas' && window._horasResumen ? [{ sheet:'Resumen operarios', h:['Operario','Registros','Horas efectivas','Horas paradas','% Efectividad'], rows:window._horasResumen }] : [];
   dlXLSX(h, data, m.file+'.xlsx', m.title, extra);
 }
@@ -4116,10 +4158,11 @@ async function planShow() {
       <button class="btn-primary" onclick="planExport()">⬇ Exportar Excel</button></div>
       <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Se llena automáticamente al subir órdenes. Estado y fecha compromiso se sincronizan con la hoja Órdenes. Orden: Pendientes primero, luego prioridad y fecha compromiso.</div>
       <div class="table-wrap"><table class="ord-tbl"><thead><tr>
-        <th>SKU</th><th>Área</th><th>OF MCH</th><th>OC</th><th>Cliente</th><th>Descripción 1</th><th>Cantidad</th><th>Fecha compromiso</th><th>Estado</th><th>Prioridad</th><th>Observaciones</th>
+        <th>SKU</th><th>Área</th><th>OF MCH</th><th>OC</th><th>Cliente</th><th>Descripción 1</th><th>Cantidad</th><th>Fecha compromiso</th><th>Estado</th><th>Prioridad</th><th>Observaciones</th><th title="Avance de las Órdenes de Trabajo ligadas por OF Interna">Avance OT</th>
       </tr></thead><tbody id="plan-body"></tbody></table></div>`;
   }
   await planLoadExtra();
+  if (typeof otList!=='undefined' && !otList.length && sbClient) await otLoadAll();
   planRender();
 }
 function planRender() {
@@ -4139,8 +4182,15 @@ function planRender() {
       <td><input type="date" value="${o.fecha_termino||''}" onchange="planSetFecha('${o.id}',this.value)" ${dis} style="${st}${late?'border-color:#dc2626;color:#dc2626;':''}"/></td>
       <td><select onchange="planSetEstado('${o.id}',this.value)" ${dis} class="estado-select est-${o.estado||'Pendiente'}">${['Pendiente','Parcial','Completado'].map(e=>`<option ${e===est?'selected':''}>${e}</option>`).join('')}</select></td>
       <td><select onchange="planSetExtra('${o.id}','prioridad',this.value);this.style.color=this.options[this.selectedIndex].dataset.c" ${dis} style="${st}font-weight:700;color:${pc};">${['Alta','Media','Baja'].map(p=>`<option data-c="${p==='Alta'?'#dc2626':p==='Media'?'#d97706':'#64748b'}" ${p===pri?'selected':''}>${p}</option>`).join('')}</select></td>
-      <td><input type="text" value="${ea(planObs(o))}" placeholder="Observaciones…" onchange="planSetExtra('${o.id}','observaciones',this.value)" ${dis} style="${st}width:200px;"/></td></tr>`;
-  }).join('') : '<tr><td colspan="11"><div class="empty-state"><p>Sin órdenes</p><small>Sube órdenes y aparecerán aquí automáticamente</small></div></td></tr>';
+      <td><input type="text" value="${ea(planObs(o))}" placeholder="Observaciones…" onchange="planSetExtra('${o.id}','observaciones',this.value)" ${dis} style="${st}width:200px;"/></td>
+      <td style="text-align:center;font-size:12px;">${planAvOT(o)}</td></tr>`;
+  }).join('') : '<tr><td colspan="12"><div class="empty-state"><p>Sin órdenes</p><small>Sube órdenes y aparecerán aquí automáticamente</small></div></td></tr>';
+}
+function planAvOT(o) {
+  const l = (typeof otList!=='undefined'?otList:[]).filter(t => o.of_interna && t.of_interna && String(t.of_interna).includes(o.of_interna));
+  if (!l.length) return '<span style="color:#cbd5e1;">—</span>';
+  const av = Math.round(l.reduce((a,t)=>a+otAvance(t),0)/l.length);
+  return `<b style="color:${av>=100?'#16a34a':'#2563eb'}">${av}%</b>${av>=100&&o.estado!=='Entregado'?` <span title="OT al 100%: considera marcar Completado">💡</span>`:''}`;
 }
 const planOrd = id => orders.find(o => String(o.id)===String(id));
 function planSetEstado(id, ui) { const o = planOrd(id); if (!o) return; updateEstado(o.id, ui==='Completado' ? 'Entregado' : ui); setTimeout(planRender, 50); }
@@ -4172,12 +4222,14 @@ async function ganttShow() {
       <label style="font-size:11px;color:var(--text2);">Desde <input type="date" id="g-ini" onchange="ganttRender()" style="${inp}"/></label>
       <select id="g-dias" onchange="ganttRender()" style="${inp}"><option value="30">30 días</option><option value="60" selected>60 días</option><option value="90">90 días</option><option value="120">120 días</option></select>
       <select id="g-est" onchange="ganttRender()" style="${inp}"><option value="">Todos los estados</option><option>Pendiente</option><option>Parcial</option><option>Completado</option></select>
+      <select id="g-modo" onchange="ganttRender()" style="${inp}"><option value="ord">Vista: Órdenes</option><option value="ot">Vista: OT por operario</option></select>
       <label style="font-size:11px;color:var(--text2);cursor:pointer;"><input type="checkbox" id="g-vis" checked onchange="ganttRender()"/> Solo las visibles en el rango</label>
       <button class="btn-primary" onclick="ganttExport()">⬇ Exportar Excel</button></div>
       <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Las <b>pendientes van arriba</b>. Cada barra va desde la fecha de la orden hasta su <b>fecha compromiso</b> (hoja Planificación). Parte oscura = avance (Parcial 50%, Completado 100%). <span style="color:#dc2626;font-weight:700;">Rojo = atrasada</span>.</div>
       <div id="g-box" class="table-wrap" style="padding:0;"></div>`;
   }
   await planLoadExtra();
+  if (typeof otList!=='undefined' && !otList.length && sbClient) await otLoadAll();
   if (!document.getElementById('g-ini').value) {
     const base = new Date(); base.setDate(base.getDate()-7);
     document.getElementById('g-ini').value = _iso(base);
@@ -4189,6 +4241,13 @@ function ganttRows() {
   const est = document.getElementById('g-est').value, vis = document.getElementById('g-vis').checked;
   const ini = document.getElementById('g-ini').value, n = +document.getElementById('g-dias').value;
   const end = new Date(_d(ini)); end.setDate(end.getDate()+n-1); const endISO = _iso(end);
+  if (document.getElementById('g-modo').value==='ot') {
+    return (typeof otList!=='undefined'?otList:[]).filter(t => t.fecha_ingreso && t.fecha_termino).map(t => { const av = otAvance(t);
+        return { o:{ id:t.id, __ot:1, __av:av, of_mch:t.ot_numero, sku:t.operario||'(sin operario)', cliente:t.cliente||'', descripcion1:t.n_plano||'', fecha:t.fecha_ingreso, fecha_termino:t.fecha_termino, estado: av>=100?'Entregado':av>0?'Parcial':'Pendiente' },
+                 ini:t.fecha_ingreso <= t.fecha_termino ? t.fecha_ingreso : t.fecha_termino, fin:t.fecha_termino }; })
+      .filter(r => (!est || PLAN_EST[r.o.estado]===est) && (!vis || (r.fin >= ini && r.ini <= endISO)))
+      .sort((a,b) => String(a.o.sku).localeCompare(String(b.o.sku)) || a.ini.localeCompare(b.ini));
+  }
   return orders.filter(o => o.fecha && o.fecha_termino && (!est || PLAN_EST[o.estado||'Pendiente']===est))
     .map(o => ({ o, ini: o.fecha <= o.fecha_termino ? o.fecha : o.fecha_termino, fin: o.fecha_termino }))
     .filter(r => !vis || (r.fin >= ini && r.ini <= endISO))
@@ -4210,10 +4269,10 @@ function ganttRender() {
   const left = 'flex:0 0 270px;position:sticky;left:0;background:#fff;z-index:3;border-right:1px solid #cbd5e1;padding:4px 8px;font-size:11px;overflow:hidden;';
   const grid = `background:repeating-linear-gradient(to right,#eef2f7 0,#eef2f7 1px,transparent 1px,transparent ${W}px);`;
   const body = rows.map(({o, ini:fi, fin}) => {
-    const s = Math.round((_d(fi)-ini)/864e5), e = Math.round((_d(fin)-ini)/864e5), av = G_AV[o.estado||'Pendiente'];
+    const s = Math.round((_d(fi)-ini)/864e5), e = Math.round((_d(fin)-ini)/864e5), av = o.__ot ? o.__av : G_AV[o.estado||'Pendiente'];
     const x = s*W, w = Math.max(W, (e-s+1)*W);
     return `<div style="display:flex;border-bottom:1px solid #eef2f7;height:34px;">
-      <div style="${left}"><b>${esc(o.of_mch||'—')}</b> · ${esc(o.sku)} <span style="color:#64748b;">${esc(o.cliente)}</span><br><span style="color:#94a3b8;">${fmt(fi)} → ${fmt(fin)} · ${planPrio(o)} · ${PLAN_EST[o.estado||'Pendiente']}</span></div>
+      <div style="${left}"><b>${esc(o.of_mch||'—')}</b> · ${esc(o.sku)} <span style="color:#64748b;">${esc(o.cliente)}</span><br><span style="color:#94a3b8;">${fmt(fi)} → ${fmt(fin)} · ${o.__ot?('Avance '+o.__av+'%'):planPrio(o)} · ${PLAN_EST[o.estado||'Pendiente']}</span></div>
       <div style="position:relative;flex:none;width:${n*W}px;${grid}">
         <div title="${ea(o.descripcion1+' · '+PLAN_EST[o.estado||'Pendiente'])}" style="position:absolute;top:7px;height:20px;left:${x}px;width:${w}px;background:${ganttBarColor(o)};opacity:.85;border-radius:5px;overflow:hidden;">
           <div style="width:${av}%;height:100%;background:rgba(0,0,0,.28);"></div></div></div></div>`;
@@ -4272,7 +4331,9 @@ async function otLoadAll() {
   if (a.error || b.error || c.error) toast('Error: '+(a.error||b.error||c.error).message+' (¿ejecutaste el SQL actualizado?)','error');
   otList = a.data || []; otOperarios = (b.data&&b.data.length) ? b.data : OT_OP_DEF; otSupervisores = ((c.data&&c.data.length) ? c.data : [{nombre:'Manuel Pinto'}]).map(x => x.nombre==='MANUEL PINTO' ? {...x, nombre:'Manuel Pinto'} : x);
 }
-async function otShow() { await otLoadAll(); otRenderList(); }
+const otAvance = r => { const t = (r.tareas||[]).reduce((a,x)=>a+(+x.total||0),0), d = (r.tareas||[]).reduce((a,x)=>a+(+x.diaria||0),0); return t ? Math.round(d/t*100) : 0; };
+const otHoras  = r => { const h = (modData.control_horas||[]).filter(x => x.ot_numero===r.ot_numero).reduce((a,x)=>a+(+x.horas_efectivas||0),0); return h ? Math.round(h*10)/10+' h' : '—'; };
+async function otShow() { await Promise.all([otLoadAll(), sbClient ? modLoad('control_horas') : null]); otRenderList(); }
 
 // ---- Lista ----
 function otRenderList() {
@@ -4284,10 +4345,10 @@ function otRenderList() {
     <input id="ot-q" value="${ea(q)}" placeholder="🔍 Buscar OT, operario, cliente, plano…" oninput="otRenderList();document.getElementById('ot-q').focus()" style="border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;width:250px;outline:none;"/>
     ${ce?'<button class="btn-primary" style="background:#0F6E56;" onclick="otNew()">＋ Nueva OT</button>':''}
     <button class="btn-primary" onclick="otExport()">⬇ Exportar Excel</button></div>
-    <div class="table-wrap"><table class="ord-tbl"><thead><tr><th>N° OT</th><th>Cargo</th><th>Operario</th><th>Cliente</th><th>N° Plano</th><th>OF Interna</th><th>F. Ingreso</th><th>F. Término</th><th>Supervisor</th><th>Acciones</th></tr></thead><tbody>
-    ${rows.length ? rows.map(r=>`<tr><td><b>${esc(r.ot_numero)}</b></td><td>${esc(r.cargo)}</td><td>${esc(r.operario)}</td><td>${esc(r.cliente)}</td><td>${esc(r.n_plano)}</td><td>${esc(r.of_interna)}</td><td>${fmt(r.fecha_ingreso)}</td><td>${fmt(r.fecha_termino)}</td><td>${esc(r.supervisor)}</td>
+    <div class="table-wrap"><table class="ord-tbl"><thead><tr><th>N° OT</th><th>Cargo</th><th>Operario</th><th>Cliente</th><th>N° Plano</th><th>OF Interna</th><th>F. Ingreso</th><th>F. Término</th><th>Supervisor</th><th>Avance</th><th>Horas ef.</th><th>Acciones</th></tr></thead><tbody>
+    ${rows.length ? rows.map(r=>`<tr><td><b>${esc(r.ot_numero)}</b></td><td>${esc(r.cargo)}</td><td>${esc(r.operario)}</td><td>${esc(r.cliente)}</td><td>${esc(r.n_plano)}</td><td>${esc(r.of_interna)}</td><td>${fmt(r.fecha_ingreso)}</td><td>${fmt(r.fecha_termino)}</td><td>${esc(r.supervisor)}</td><td>${otAvance(r)}%</td><td>${otHoras(r)}</td>
       <td style="white-space:nowrap;"><button title="Imprimir / PDF" onclick="otPrint('${r.id}')" style="border:none;background:none;cursor:pointer;">🖨</button>${ce?`<button title="Editar" onclick="otEdit('${r.id}')" style="border:none;background:none;cursor:pointer;">✏️</button>`:''}${cd?`<button title="Eliminar" onclick="otDel('${r.id}')" style="border:none;background:none;cursor:pointer;">🗑</button>`:''}</td></tr>`).join('')
-      : '<tr><td colspan="10"><div class="empty-state"><p>Sin órdenes de trabajo</p></div></td></tr>'}</tbody></table></div>`;
+      : '<tr><td colspan="12"><div class="empty-state"><p>Sin órdenes de trabajo</p></div></td></tr>'}</tbody></table></div>`;
 }
 
 // ---- Formulario ----
@@ -4446,6 +4507,171 @@ function otExport() {
   dlXLSX(h, rows, 'ordenes_trabajo_msteel.xlsx', 'Órdenes de Trabajo', [
     { sheet:'Tareas', h:['N° OT','Operario','Descripción de la tarea','Frame','Cantidad total','Cantidad diaria'], rows:tareas },
     { sheet:'Hallazgos', h:['N° OT','Operario','Descripción','Tiempo detención','Solución'], rows:hall }]);
+}
+
+// ══════════════════════════════════════════════════════
+//  CONTRASEÑA (acceso seguro) · RESPALDO · AVISOS · VISTA PREVIA PDF
+// ══════════════════════════════════════════════════════
+function togglePassVis(id, btn) { const i = document.getElementById(id); if (i) i.type = i.type==='password' ? 'text' : 'password'; }
+function abrirModalCambioPass() {
+  ['actual','nueva','confirm'].forEach(k => { const e = document.getElementById('cambio-pass-'+k); if (e) e.value = ''; });
+  document.getElementById('cambio-pass-error').textContent = '';
+  document.getElementById('modal-cambio-pass').style.display = 'flex';
+}
+function cerrarModalCambioPass() { document.getElementById('modal-cambio-pass').style.display = 'none'; }
+async function guardarNuevaPass() {
+  const err = document.getElementById('cambio-pass-error'), g = k => document.getElementById('cambio-pass-'+k).value;
+  const act = g('actual'), nue = g('nueva'), con = g('confirm'); err.textContent = '';
+  if (!currentUser?.segura) { err.textContent = 'Tu cuenta aún no tiene acceso seguro. Pide al administrador que la cree.'; return; }
+  if (!act || !nue) { err.textContent = 'Completa todos los campos'; return; }
+  if (nue.length < 8) { err.textContent = 'La nueva contraseña debe tener al menos 8 caracteres'; return; }
+  if (nue !== con) { err.textContent = 'Las contraseñas no coinciden'; return; }
+  const email = currentUser.usuario.toLowerCase()+'@msteel.app';
+  const v = await sbClient.auth.signInWithPassword({ email, password: act });
+  if (v.error) { err.textContent = 'La contraseña actual es incorrecta'; return; }
+  const u = await sbClient.auth.updateUser({ password: nue });
+  if (u.error) { err.textContent = u.error.message; return; }
+  cerrarModalCambioPass(); toast('✓ Contraseña actualizada','success');
+  logMovimiento('Sistema','Cambio de contraseña',currentUser.usuario);
+}
+
+// ---- Respaldo completo a Excel (solo Admin) ----
+const BACKUP_TABLAS = ['ordenes_fabricacion','of_logistica','pletinas','planificacion','ordenes_trabajo','control_horas','operarios','supervisores','movimientos'];
+async function respaldoCompleto() {
+  if (currentUser?.rol !== 'ADMIN') { toast('Solo el administrador puede respaldar','error'); return; }
+  if (!sbClient) { toast('Sin conexión a la base de datos','error'); return; }
+  toast('Generando respaldo…','success');
+  const wb = XLSX.utils.book_new(); let total = 0;
+  for (const t of BACKUP_TABLAS) {
+    let all = [], from = 0, ok = true;
+    for (;;) {
+      const { data, error } = await sbClient.from(t).select('*').range(from, from+999);
+      if (error) { ok = false; break; }
+      all = all.concat(data || []); if (!data || data.length < 1000) break; from += 1000;
+    }
+    if (!ok) continue;
+    const rows = all.map(r => Object.fromEntries(Object.entries(r).map(([k,v]) => [k, (v!==null && typeof v==='object') ? JSON.stringify(v) : v])));
+    XLSX.utils.book_append_sheet(wb, rows.length ? XLSX.utils.json_to_sheet(rows) : XLSX.utils.aoa_to_sheet([['(sin registros)']]), t.slice(0,31));
+    total += rows.length;
+  }
+  const hoy = _iso(new Date());
+  XLSX.writeFile(wb, `respaldo_msteel_${hoy}.xlsx`);
+  localStorage.setItem('msteel_ultimo_respaldo', hoy);
+  toast(`✓ Respaldo descargado (${total} filas)`,'success');
+  logMovimiento('Sistema','Respaldo completo',`${total} filas`);
+}
+function respaldoRecordatorio() {
+  if (currentUser?.rol !== 'ADMIN' || sessionStorage.getItem('msteel_resp_aviso')) return;
+  sessionStorage.setItem('msteel_resp_aviso','1');
+  const u = localStorage.getItem('msteel_ultimo_respaldo');
+  const dias = u ? Math.floor((new Date() - _d(u))/864e5) : null;
+  if (dias === null || dias >= 30) setTimeout(() => { if (confirm(dias===null ? 'Aún no has descargado ningún respaldo desde este equipo.\n¿Descargarlo ahora?' : `Han pasado ${dias} días desde el último respaldo.\n¿Descargarlo ahora?`)) respaldoCompleto(); }, 2500);
+}
+
+// ---- Avisos de vencimiento ----
+function avisosData() {
+  const hoy = _iso(new Date()), man = _iso(new Date(Date.now()+864e5)), pas = _iso(new Date(Date.now()+2*864e5));
+  const act = orders.filter(o => o.estado!=='Entregado' && o.fecha_termino);
+  return { atrasadas: act.filter(o => o.fecha_termino < hoy), hoy: act.filter(o => o.fecha_termino===hoy), manana: act.filter(o => o.fecha_termino===man), pasado: act.filter(o => o.fecha_termino===pas) };
+}
+function avisosActualizar() {
+  const a = avisosData(), n = a.atrasadas.length + a.hoy.length + a.manana.length + a.pasado.length;
+  const c = document.getElementById('av-count'); if (c) { c.textContent = n || ''; c.style.display = n ? 'inline-block' : 'none'; }
+  avisosNotificarNavegador(a);
+}
+function avisosNotificarNavegador(a) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const hoy = _iso(new Date()); if (localStorage.getItem('msteel_notif_dia') === hoy) return;
+  const n = a.atrasadas.length + a.hoy.length + a.manana.length; if (!n) return;
+  localStorage.setItem('msteel_notif_dia', hoy);
+  const txt = `${a.atrasadas.length} atrasadas · ${a.hoy.length} vencen hoy · ${a.manana.length} mañana`;
+  navigator.serviceWorker?.ready.then(r => r.showNotification('MSTEEL — Órdenes por vencer', { body: txt, icon: 'icon-192.png', badge: 'icon-192.png' })).catch(() => { try { new Notification('MSTEEL — Órdenes por vencer', { body: txt }); } catch(e) {} });
+}
+function avisosAbrir() {
+  const a = avisosData();
+  const sec = (tit, col, list) => `<div style="margin-bottom:12px;"><div style="font-weight:700;color:${col};font-size:13px;margin-bottom:4px;">${tit} (${list.length})</div>${list.length ? list.slice(0,40).map(o => `<div onclick="avisoIr('${o.id}')" style="padding:6px 8px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:4px;font-size:12px;cursor:pointer;display:flex;justify-content:space-between;gap:8px;"><span><b>${esc(o.sku)}</b> · ${esc(o.of_mch)} · ${esc(o.cliente)}</span><span style="color:${col};white-space:nowrap;">${fmt(o.fecha_termino)}</span></div>`).join('') + (list.length>40?`<div style="font-size:11px;color:#94a3b8;">…y ${list.length-40} más</div>`:'') : '<div style="font-size:12px;color:#94a3b8;">Sin órdenes</div>'}</div>`;
+  let ov = document.getElementById('av-ov');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'av-ov'; ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10002;display:flex;align-items:center;justify-content:center;padding:1rem;'; document.body.appendChild(ov); }
+  const perm = ('Notification' in window) ? Notification.permission : 'denied';
+  ov.innerHTML = `<div style="background:#fff;border-radius:14px;padding:1.1rem 1.3rem;width:min(560px,100%);max-height:90vh;overflow:auto;color:#1e293b;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h3>🔔 Avisos de vencimiento</h3><button onclick="avisosCerrar()" style="border:none;background:none;font-size:18px;cursor:pointer;">✕</button></div>
+    ${sec('⛔ Atrasadas','#dc2626',a.atrasadas)}${sec('⚠ Vencen hoy','#ea580c',a.hoy)}${sec('⏰ Vencen mañana','#ca8a04',a.manana)}${sec('📅 Vencen pasado mañana','#2563eb',a.pasado)}
+    ${perm==='default' ? '<button class="btn-primary" onclick="avisosPermiso()" style="width:100%;">🔔 Activar avisos del navegador (1 vez al día)</button>' : perm==='granted' ? '<div style="font-size:11px;color:#16a34a;">✓ Avisos del navegador activados</div>' : '<div style="font-size:11px;color:#94a3b8;">Los avisos del navegador están bloqueados en este equipo.</div>'}</div>`;
+  ov.style.display = 'flex';
+}
+function avisosCerrar() { const o = document.getElementById('av-ov'); if (o) o.style.display = 'none'; }
+async function avisosPermiso() { await Notification.requestPermission(); avisosAbrir(); avisosActualizar(); }
+function avisoIr(id) {
+  const o = orders.find(x => String(x.id)===String(id)); avisosCerrar(); if (!o) return;
+  showPage('ordenes', document.querySelector('.nav-tab[onclick*="\'ordenes\'"]'));
+  const q = document.getElementById('ord-search'); if (q) { q.value = o.sku; renderOrdTable(); }
+}
+
+// ---- Vista previa antes de importar PDFs ----
+function validarFila(r, otras) {
+  const w = [];
+  const dup = orders.some(o => o.fecha===r.fecha && o.sku===r.sku && o.descripcion1===r.descripcion1 && o.descripcion2===r.descripcion2 && o.cantidad===r.cantidad && o.oc_cliente===r.oc_cliente && o.of_mch===r.of_mch && o.of_interna===r.of_interna && o.cliente===r.cliente && o.area===r.area);
+  if (!r.fecha) w.push('Sin fecha');
+  if (!(+r.cantidad > 0)) w.push('Cantidad vacía o 0');
+  if (!/^[A-Z]{2,5}-\d+$/i.test(r.sku||'')) w.push('SKU con formato raro');
+  if (!/^\d{8}-\d+$/.test(r.of_interna||'')) w.push('OF Interna sin formato AAAAMMDD-N');
+  if (!r.cliente) w.push('Sin cliente'); if (!r.area) w.push('Sin área');
+  if (r.of_interna && (orders.some(o => o.of_interna===r.of_interna && o.sku!==r.sku) || otras.some(x => x!==r && x.of_interna===r.of_interna && x.sku!==r.sku))) w.push('OF Interna usada por otro SKU');
+  return { dup, w };
+}
+let prevState = null;
+function previewImport(items) {
+  return new Promise(resolve => {
+    const rows = items.flatMap(it => it.rows.map(row => ({ file: it.file, row, sel: true })));
+    rows.forEach(x => { x.sel = !validarFila(x.row, rows.map(y=>y.row)).dup; });
+    prevState = { rows, resolve };
+    let ov = document.getElementById('prev-ov');
+    if (!ov) { ov = document.createElement('div'); ov.id = 'prev-ov'; ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10003;display:flex;align-items:center;justify-content:center;padding:.8rem;'; document.body.appendChild(ov); }
+    ov.style.display = 'flex'; prevRender();
+  });
+}
+function prevRender() {
+  const { rows } = prevState, all = rows.map(x => x.row), ov = document.getElementById('prev-ov');
+  const inp = (i,k,w) => `<input value="${ea(rows[i].row[k])}" onchange="prevEdit(${i},'${k}',this.value)" style="width:${w}px;border:1px solid #cbd5e1;border-radius:5px;padding:2px 4px;font-size:11px;"/>`;
+  const body = rows.map((x,i) => { const v = validarFila(x.row, all);
+    const flag = v.dup ? '<span style="color:#dc2626;font-weight:700;">🔁 Ya existe</span>' : v.w.length ? `<span style="color:#b45309;">⚠ ${v.w.map(esc).join(' · ')}</span>` : '<span style="color:#16a34a;">✓ OK</span>';
+    return `<tr style="${v.dup?'background:#fef2f2;':v.w.length?'background:#fffbeb;':''}"><td><input type="checkbox" ${x.sel?'checked':''} onchange="prevState.rows[${i}].sel=this.checked;prevCount()"/></td>
+      <td style="font-size:10px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${ea(x.file.name)}">${esc(x.file.name)}</td>
+      <td>${esc(x.row.fecha)}</td><td><b>${esc(x.row.sku)}</b></td><td>${esc(x.row.descripcion1)}</td><td>${inp(i,'cantidad',60)}</td><td>${esc(x.row.oc_cliente)}</td><td>${esc(x.row.of_mch)}</td><td>${inp(i,'of_interna',100)}</td><td>${inp(i,'cliente',110)}</td><td>${inp(i,'area',55)}</td><td style="font-size:11px;">${flag}</td></tr>`; }).join('');
+  ov.innerHTML = `<div style="background:#fff;border-radius:14px;padding:1rem 1.2rem;width:min(1150px,100%);max-height:92vh;display:flex;flex-direction:column;color:#1e293b;">
+    <h3 style="margin-bottom:4px;">🔍 Revisa antes de importar</h3>
+    <div style="font-size:12px;color:#64748b;margin-bottom:8px;">Corrige OF Interna, cantidad, cliente o área si algo está mal. Las filas con 🔁 ya existen y vienen desmarcadas.</div>
+    <div style="overflow:auto;flex:1;border:1px solid #e2e8f0;border-radius:8px;"><table class="ord-tbl" style="min-width:900px;"><thead><tr><th></th><th>Archivo</th><th>Fecha</th><th>SKU</th><th>Descripción 1</th><th>Cant.</th><th>OC</th><th>OF MCH</th><th>OF Interna</th><th>Cliente</th><th>Área</th><th>Revisión</th></tr></thead><tbody>${body}</tbody></table></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:10px;"><span id="prev-count" style="font-size:12px;color:#64748b;margin-right:auto;"></span>
+      <button class="btn-primary" style="background:#94a3b8;" onclick="prevClose(null)">Cancelar</button><button class="btn-primary" onclick="prevClose(true)">Importar seleccionadas</button></div></div>`;
+  prevCount();
+}
+function prevCount() { const n = prevState.rows.filter(x=>x.sel).length, e = document.getElementById('prev-count'); if (e) e.textContent = `${n} de ${prevState.rows.length} fila(s) seleccionadas`; }
+function prevEdit(i, k, v) { prevState.rows[i].row[k] = k==='cantidad' ? (parseFloat(String(v).replace(',','.'))||0) : String(v).trim(); prevRender(); }
+function prevClose(ok) {
+  const st = prevState; document.getElementById('prev-ov').style.display = 'none'; prevState = null;
+  st.resolve(ok ? st.rows.filter(x=>x.sel).map(x => ({ file:x.file, row:x.row })) : null);
+}
+
+// ---- Capacidad semanal por operario (horas reales vs. capacidad y OT asignadas a futuro) ----
+function weekStart(d) { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay()+6)%7)); x.setHours(0,0,0,0); return x; }
+function capRender() {
+  const box = document.getElementById('cap-control_horas'); if (!box) return;
+  const cap = +localStorage.getItem('msteel_cap_h') || 44, w0 = weekStart(new Date());
+  const weeks = [-3,-2,-1,0,1,2].map(k => { const d = new Date(w0); d.setDate(d.getDate()+7*k); return { k, ini:_iso(d), fin:_iso(new Date(d.getFullYear(), d.getMonth(), d.getDate()+6)) }; });
+  const ots = (typeof otList!=='undefined' ? otList : []);
+  const ops = [...new Set([...(typeof otOperarios!=='undefined'?otOperarios.map(o=>o.nombre):[]), ...modData.control_horas.map(r=>r.operario)].filter(Boolean))].sort();
+  const col = p => p>=100 ? '#fed7aa' : p>=70 ? '#bbf7d0' : p>=40 ? '#fef08a' : '#fecaca';
+  const lab = w => (w.k<=0 ? 'Real' : 'Plan')+'<br>'+fmt(w.ini).slice(0,5);
+  const rows = ops.map(o => `<tr><td><b>${esc(o)}</b></td>${weeks.map(w => {
+    if (w.k <= 0) { const h = modData.control_horas.filter(r => r.operario===o && r.fecha>=w.ini && r.fecha<=w.fin).reduce((a,r)=>a+(+r.horas_efectivas||0),0), p = Math.round(h/cap*100);
+      return `<td style="text-align:center;background:${h?col(p):'#f8fafc'};font-size:11px;">${h?`${Math.round(h*10)/10}h<br><b>${p}%</b>`:'—'}</td>`; }
+    const n = ots.filter(t => t.operario===o && t.fecha_ingreso && t.fecha_termino && t.fecha_ingreso<=w.fin && t.fecha_termino>=w.ini).length;
+    return `<td style="text-align:center;background:${n>=3?'#fed7aa':n?'#dbeafe':'#f8fafc'};font-size:11px;">${n?`<b>${n}</b> OT`:'—'}</td>`; }).join('')}</tr>`).join('');
+  box.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;"><b style="font-size:13px;">📊 Capacidad semanal por operario</b>
+      <label style="font-size:11px;color:var(--text2);">Horas por semana <input type="number" value="${cap}" min="1" max="100" style="width:60px;border:1px solid var(--border);border-radius:8px;padding:2px 6px;" onchange="localStorage.setItem('msteel_cap_h',this.value);capRender()"/></label>
+      <span style="font-size:10px;color:var(--text2);">Real = horas efectivas / capacidad · Plan = OT asignadas (3 o más = carga alta)</span></div>
+    ${ops.length ? `<div class="table-wrap"><table class="ord-tbl"><thead><tr><th>Operario</th>${weeks.map(w=>`<th style="text-align:center;font-size:11px;">${lab(w)}${w.k===0?' ◀':''}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>` : '<div style="font-size:12px;color:#94a3b8;">Sin operarios todavía</div>'}`;
 }
 </script>
 </body>
