@@ -416,6 +416,7 @@ body.dark-bg .ord-toolbar span,body.dark-bg .ord-toolbar label,body.dark-bg .pag
     <button class="nav-tab" title="Pletinas" onclick="showPage('pletinas',this)"><span class="nav-ico">🔩</span><span class="nav-txt">Pletinas</span></button>
     <button class="nav-tab" id="nav-data" style="display:none;" title="BOM / Data" onclick="showPage('data',this)"><span class="nav-ico">🗄</span><span class="nav-txt">BOM / Data</span></button>
     <button class="nav-tab" id="nav-movimientos" style="display:none;" title="Movimientos" onclick="showPage('movimientos',this)"><span class="nav-ico">🛡</span><span class="nav-txt">Movimientos</span></button>
+    <button class="nav-tab" id="nav-permisos" style="display:none;" title="Permisos" onclick="showPage('permisos',this)"><span class="nav-ico">🔐</span><span class="nav-txt">Permisos</span></button>
   </div>
 
   <!-- Footer: usuario + acciones -->
@@ -825,6 +826,8 @@ body.dark-bg .ord-toolbar span,body.dark-bg .ord-toolbar label,body.dark-bg .pag
 <div id="page-gantt" class="page"></div>
 <div id="page-control_horas" class="page"></div>
 
+<div id="page-permisos" class="page"></div>
+
 <div id="page-data" class="page">
   <div class="ord-toolbar" style="flex-wrap:wrap;gap:8px;">
     <h2>🗄 BOM / Data <span style="font-size:12px;font-weight:400;color:var(--text2);" id="count-label-data"></span></h2>
@@ -990,7 +993,7 @@ const TABLE_MOV = 'movimientos';
 //  NAV
 // ══════════════════════════════════════════════════════
 function showPage(id, el) {
-  if (id === 'movimientos' && !tienePermiso('ver_movimientos')) { toast('Solo el administrador puede ver este módulo','error'); return; }
+  if (id === 'permisos' ? currentUser?.rol !== 'ADMIN' : (PERM_MODS.some(m => m.id===id) && !modVer(id))) { toast('No tienes acceso a este módulo','error'); return; }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
@@ -1001,6 +1004,7 @@ function showPage(id, el) {
   if (id === 'pletinas') renderPletinasTable();
   if (id === 'control_horas') modShow(id);
   if (id === 'ordenes_trabajo') otShow();
+  if (id === 'permisos') permShow();
   if (id === 'planificacion') planShow();
   if (id === 'gantt') ganttShow();
   if (id === 'marca') marcaInit();
@@ -2888,20 +2892,15 @@ function checkVencidasNotify() {
 //                     (estado, fechas, MSTEEL, Logística, subir, eliminar),
 //                     pero NO puede ver el módulo Movimientos.
 //   LECTURA         → solo lectura en todos los módulos.
-function tienePermiso(accion) {
+const PERM_DEF_MOD = { ordenes_fechas_estado:'ordenes', ordenes_msteel:'ordenes', logistica_editar:'ordenes', subir:'ordenes', eliminar:'ordenes', aprobar_horas:'control_horas', horas_registrar:'control_horas', ver_movimientos:'movimientos' };
+function tienePermiso(accion, mod) {
   if (!currentUser) return false;
-  const rol = currentUser.rol;
-  const editor = rol==='ADMIN' || rol==='EDITOR_LIMITADO' || rol==='SUPERVISOR';
+  const rol = currentUser.rol, m = mod || PERM_DEF_MOD[accion];
   switch (accion) {
-    case 'ordenes_fechas_estado': return editor;
-    case 'ordenes_msteel':        return editor;
-    case 'logistica_editar':      return editor;
-    case 'eliminar':              return rol==='ADMIN' || rol==='EDITOR_LIMITADO';
-    case 'subir':                 return editor;
-    case 'ver_movimientos':       return rol==='ADMIN';
-    case 'aprobar_horas':         return rol==='ADMIN' || rol==='SUPERVISOR';
-    case 'horas_registrar':       return editor || rol==='OPERARIO';
-    default:                      return false;
+    case 'ver_movimientos': return modVer('movimientos');
+    case 'eliminar':        return modEditar(m) && (rol==='ADMIN' || rol==='EDITOR_LIMITADO');
+    case 'aprobar_horas':   return modEditar('control_horas') && (rol==='ADMIN' || rol==='SUPERVISOR');
+    default:                return m ? modEditar(m) : false;
   }
 }
 
@@ -2953,11 +2952,12 @@ async function intentarLogin() {
       rol = data[0].rol; nombre = data[0].usuario;
     }
     currentUser = { usuario: nombre, rol, segura, operario };
+    await loadMisPermisos();
     localStorage.setItem('msteel_user', JSON.stringify(currentUser));
     ocultarLogin();
     aplicarPermisos();
-    const primerTab = document.querySelector(rol==='OPERARIO' ? '.nav-tab[onclick*="\'control_horas\'"]' : '.nav-tab[onclick*="\'ordenes\'"]');
-    if (primerTab) showPage(rol==='OPERARIO' ? 'control_horas' : 'ordenes', primerTab);
+    const primero = PERM_MODS.find(x => modVer(x.id) && x.id==='ordenes') || PERM_MODS.find(x => modVer(x.id));
+    if (primero) showPage(primero.id, document.querySelector(`.nav-tab[onclick*="'${primero.id}'"]`));
     loadOrders();
     loadPletinas();
     startAutoRefresh();
@@ -2978,29 +2978,22 @@ function cerrarSesion() {
 
 function aplicarPermisos() {
   const rol = currentUser?.rol;
-  const navMov  = document.getElementById('nav-movimientos');
-  const navData = document.getElementById('nav-data');
-  if (navMov)  navMov.style.display  = (rol==='ADMIN') ? '' : 'none';
-  if (navData) navData.style.display = (rol==='ADMIN') ? '' : 'none';
-
   const puedeSubir = tienePermiso('subir');
   const upZone = document.getElementById('upload-zone');
   if (upZone) upZone.style.display = puedeSubir ? '' : 'none';
 
   const badge = document.getElementById('user-badge');
-  if (badge && currentUser) badge.textContent = `${currentUser.usuario} · ${rolLabel(rol)}${currentUser.segura?' 🔒':''}`;
+  if (badge && currentUser) badge.textContent = `${currentUser.usuario} · ${rolLabel(rol)}${currentUser.segura?' 🔒':''}${currentUser.perms?' ⚙':''}`;
   const bkp = document.getElementById('btn-respaldo'); if (bkp) bkp.style.display = (rol==='ADMIN') ? '' : 'none';
-  // El operario solo ve Órdenes de Trabajo y Control de Horas
+  // Cada pestaña se muestra solo si el usuario tiene acceso a ese módulo
   document.querySelectorAll('.nav-tab').forEach(b => { const m = (b.getAttribute('onclick')||'').match(/showPage\('(\w+)'/); if (!m) return;
-    if (rol==='OPERARIO') b.style.display = ['ordenes_trabajo','control_horas'].includes(m[1]) ? '' : 'none';
-    else if (!['data','movimientos'].includes(m[1])) b.style.display = ''; });
-  if (rol==='OPERARIO' && !['page-ordenes_trabajo','page-control_horas'].includes(document.querySelector('.page.active')?.id)) showPage('control_horas', document.querySelector('.nav-tab[onclick*="\'control_horas\'"]'));
-  avisosActualizar && orders.length && avisosActualizar();
-
-  const activeId = document.querySelector('.page.active')?.id;
-  if (rol!=='ADMIN' && (activeId==='page-data'||activeId==='page-movimientos')) {
-    showPage('ordenes', document.querySelector('.nav-tab[onclick*="\'ordenes\'"]'));
+    b.style.display = m[1]==='permisos' ? (rol==='ADMIN' ? '' : 'none') : (modVer(m[1]) ? '' : 'none'); });
+  const act = (document.querySelector('.page.active')?.id || '').replace('page-','');
+  if (PERM_MODS.some(x => x.id===act) && !modVer(act)) {
+    const f = PERM_MODS.find(x => modVer(x.id));
+    if (f) showPage(f.id, document.querySelector(`.nav-tab[onclick*="'${f.id}'"]`));
   }
+  if (typeof avisosActualizar==='function' && orders.length) avisosActualizar();
   renderOrdTable();
 }
 
@@ -3556,7 +3549,7 @@ async function updateStockPletina(id, val) {
 }
 
 async function confirmarElimPletina(id) {
-  if (!tienePermiso('eliminar')) { toast('No tienes permiso para eliminar','error'); return; }
+  if (!tienePermiso('eliminar','pletinas')) { toast('No tienes permiso para eliminar','error'); return; }
   const p = pletinas.find(x=>String(x.id)===String(id));
   if (!confirm(`¿Eliminar la pletina SKU ${p?.sku||id}?`)) return;
   pletinas = pletinas.filter(x=>String(x.id)!==String(id));
@@ -3594,7 +3587,7 @@ window.addEventListener('load', () => {
     const saved = JSON.parse(localStorage.getItem('msteel_user')||'null');
     if (saved && saved.usuario && saved.rol) {
       const vigente = (!saved.segura || !sbClient) ? Promise.resolve(true) : sbClient.auth.getSession().then(r => !!(r.data && r.data.session));
-      vigente.then(ok => { if (ok) { currentUser = saved; ocultarLogin(); aplicarPermisos(); } else { localStorage.removeItem('msteel_user'); mostrarLogin(); } });
+      vigente.then(async ok => { if (ok) { currentUser = saved; ocultarLogin(); aplicarPermisos(); await loadMisPermisos(); aplicarPermisos(); } else { localStorage.removeItem('msteel_user'); mostrarLogin(); } });
     } else {
       mostrarLogin();
     }
@@ -4023,7 +4016,7 @@ function modRender(key) {
   rows.sort((a,b) => String(b[m.df]||'').localeCompare(String(a[m.df]||'')));
   modRows[key] = rows;
   document.getElementById('cnt-'+key).textContent = `(${rows.length})`;
-  const cols = m.fields.filter(f=>!f.nolist), ce = tienePermiso(key==='control_horas' ? 'horas_registrar' : 'subir'), cd = tienePermiso('eliminar'), ca = tienePermiso('aprobar_horas'), esAdm = currentUser?.rol==='ADMIN';
+  const cols = m.fields.filter(f=>!f.nolist), ce = tienePermiso(key==='control_horas' ? 'horas_registrar' : 'subir'), cd = tienePermiso('eliminar','control_horas'), ca = tienePermiso('aprobar_horas'), esAdm = currentUser?.rol==='ADMIN';
   document.getElementById('body-'+key).innerHTML = rows.length ? rows.map(r => `<tr>
     ${cols.map(f=>`<td>${modCell(f,r[f.k])}</td>`).join('')}
     <td style="white-space:nowrap;">${key==='control_horas'&&ca?`<button onclick="modAprobar('${r.id}',${r.aprobado?'false':'true'})" title="${r.aprobado?'Quitar aprobación':'Aprobar'}" style="border:none;background:none;cursor:pointer;">${r.aprobado?'↩':'✔'}</button>`:''}${ce&&!(key==='control_horas'&&r.aprobado&&!esAdm)?`<button onclick="modOpen('${key}','${r.id}')" title="Editar" style="border:none;background:none;cursor:pointer;">✏️</button>`:''}${cd&&!(key==='control_horas'&&r.aprobado&&!esAdm)?`<button onclick="modDel('${key}','${r.id}')" title="Eliminar" style="border:none;background:none;cursor:pointer;">🗑</button>`:''}</td></tr>`).join('')
@@ -4116,7 +4109,7 @@ async function modSave() {
   modRender(key);
 }
 async function modDel(key, id) {
-  if (!tienePermiso('eliminar')) { toast('Sin permiso','error'); return; }
+  if (!tienePermiso('eliminar','control_horas')) { toast('Sin permiso','error'); return; }
   if (!confirm('¿Eliminar este registro?')) return;
   const { error } = await sbClient.from(MODS[key].table).delete().eq('id',id);
   if (error) { toast('Error: '+error.message,'error'); return; }
@@ -4167,7 +4160,7 @@ async function planShow() {
 }
 function planRender() {
   const q = (document.getElementById('plan-q').value||'').toLowerCase(), fe = document.getElementById('plan-est').value, fp = document.getElementById('plan-pri').value;
-  const hoy = _iso(new Date()), ce = tienePermiso('ordenes_fechas_estado'), dis = ce ? '' : 'disabled';
+  const hoy = _iso(new Date()), ce = tienePermiso('ordenes_fechas_estado','planificacion'), dis = ce ? '' : 'disabled';
   planRows = orders.filter(o =>
     (!q || [o.sku,o.area,o.of_mch,o.oc_cliente,o.cliente,o.descripcion1,planObs(o)].some(v => String(v||'').toLowerCase().includes(q))) &&
     (!fe || PLAN_EST[o.estado||'Pendiente']===fe) && (!fp || planPrio(o)===fp))
@@ -4196,7 +4189,7 @@ const planOrd = id => orders.find(o => String(o.id)===String(id));
 function planSetEstado(id, ui) { const o = planOrd(id); if (!o) return; updateEstado(o.id, ui==='Completado' ? 'Entregado' : ui); setTimeout(planRender, 50); }
 function planSetFecha(id, v)   { const o = planOrd(id); if (!o) return; updateField(o.id, 'fecha_termino', v); setTimeout(planRender, 50); }
 async function planSetExtra(id, field, val) {
-  if (!tienePermiso('ordenes_fechas_estado')) { toast('Sin permiso para editar','error'); return; }
+  if (!tienePermiso('ordenes_fechas_estado','planificacion')) { toast('Sin permiso para editar','error'); return; }
   const o = planOrd(id); if (!o || !sbClient) return;
   const row = { orden_id: String(o.id), [field]: val || null };
   const { error } = await sbClient.from('planificacion').upsert(row, { onConflict:'orden_id' });
@@ -4339,7 +4332,7 @@ async function otShow() { await Promise.all([otLoadAll(), sbClient ? modLoad('co
 // ---- Lista ----
 function otRenderList() {
   otForm = null;
-  const pg = document.getElementById('page-ordenes_trabajo'), ce = tienePermiso('subir'), cd = tienePermiso('eliminar');
+  const pg = document.getElementById('page-ordenes_trabajo'), ce = tienePermiso('subir','ordenes_trabajo'), cd = tienePermiso('eliminar','ordenes_trabajo');
   const q = (document.getElementById('ot-q')||{}).value || '';
   const rows = otList.filter(r => !q || [r.ot_numero,r.operario,r.cliente,r.n_plano,r.of_interna,r.skus,r.supervisor].some(v => String(v||'').toLowerCase().includes(q.toLowerCase())));
   pg.innerHTML = `<div class="ord-toolbar" style="flex-wrap:wrap;gap:8px;"><h2>🛠 Órdenes de Trabajo <span style="font-size:12px;font-weight:400;color:var(--text2);">(${rows.length})</span></h2>
@@ -4484,7 +4477,7 @@ async function otSave() {
   toast('✓ OT guardada','success'); await otShow();
 }
 async function otDel(id) {
-  if (!tienePermiso('eliminar')) { toast('Sin permiso','error'); return; }
+  if (!tienePermiso('eliminar','ordenes_trabajo')) { toast('Sin permiso','error'); return; }
   if (!confirm('¿Eliminar esta orden de trabajo?')) return;
   const { error } = await sbClient.from('ordenes_trabajo').delete().eq('id',id);
   if (error) { toast('Error: '+error.message,'error'); return; }
@@ -4673,6 +4666,80 @@ function capRender() {
       <label style="font-size:11px;color:var(--text2);">Horas por semana <input type="number" value="${cap}" min="1" max="100" style="width:60px;border:1px solid var(--border);border-radius:8px;padding:2px 6px;" onchange="localStorage.setItem('msteel_cap_h',this.value);capRender()"/></label>
       <span style="font-size:10px;color:var(--text2);">Real = horas efectivas / capacidad · Plan = OT asignadas (3 o más = carga alta)</span></div>
     ${ops.length ? `<div class="table-wrap"><table class="ord-tbl"><thead><tr><th>Operario</th>${weeks.map(w=>`<th style="text-align:center;font-size:11px;">${lab(w)}${w.k===0?' ◀':''}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>` : '<div style="font-size:12px;color:#94a3b8;">Sin operarios todavía</div>'}`;
+}
+
+// ══════════════════════════════════════════════════════
+//  PERMISOS POR MÓDULO (el Admin decide quién ve / edita qué)
+// ══════════════════════════════════════════════════════
+const PERM_MODS = [
+  {id:'dashboard',n:'Dashboard'},{id:'ordenes',n:'Órdenes'},{id:'planificacion',n:'Planificación'},{id:'ordenes_trabajo',n:'Órdenes de Trabajo'},
+  {id:'gantt',n:'Carta Gantt'},{id:'control_horas',n:'Control de Horas'},{id:'marca',n:'Marca'},{id:'pletinas',n:'Pletinas'},
+  {id:'data',n:'BOM / Data'},{id:'movimientos',n:'Movimientos'}];
+const PERM_NIVEL = ['Sin acceso','Solo ver','Ver y editar'];
+// Nivel que corresponde a cada rol cuando el Admin no personalizó al usuario: 0 sin acceso · 1 solo ver · 2 ver y editar
+function roleNivel(rol, m) {
+  if (rol==='ADMIN') return 2;
+  if (rol==='OPERARIO') return m==='ordenes_trabajo' ? 1 : m==='control_horas' ? 2 : 0;
+  if (m==='data' || m==='movimientos') return 0;
+  return (rol==='EDITOR_LIMITADO' || rol==='SUPERVISOR') ? 2 : 1;
+}
+function modNivel(m) {
+  if (!currentUser) return 0;
+  if (currentUser.rol==='ADMIN') return 2;
+  const P = currentUser.perms;
+  if (P) { const x = P[m]; return (!x || !x.ver) ? 0 : (x.editar ? 2 : 1); }
+  return roleNivel(currentUser.rol, m);
+}
+const modVer = m => modNivel(m) >= 1, modEditar = m => modNivel(m) >= 2;
+async function loadMisPermisos() {
+  if (!currentUser) return;
+  if (!currentUser.segura || !sbClient) { currentUser.perms = null; return; }
+  const { data, error } = await sbClient.from('permisos_modulos').select('*').eq('usuario', currentUser.usuario.toLowerCase());
+  currentUser.perms = (error || !data || !data.length) ? null : Object.fromEntries(data.map(r => [r.modulo, { ver: !!r.ver, editar: !!r.editar }]));
+}
+
+let permUsers = [], permRows = {};
+async function permShow() {
+  if (currentUser?.rol !== 'ADMIN') return;
+  const pg = document.getElementById('page-permisos');
+  const [u, p] = await Promise.all([sbClient.rpc('listar_usuarios'), sbClient.from('permisos_modulos').select('*')]);
+  if (u.error) { pg.innerHTML = `<div class="empty-state"><p>No se pudo cargar</p><small>${esc(u.error.message)}<br>¿Ejecutaste permisos_modulos.sql?</small></div>`; return; }
+  permUsers = u.data || []; permRows = {};
+  (p.data || []).forEach(r => { (permRows[r.usuario] = permRows[r.usuario] || {})[r.modulo] = { ver: r.ver, editar: r.editar }; });
+  permRender();
+}
+function permNivel(usr, m) {
+  if (usr.rol==='ADMIN') return 2;
+  const rows = permRows[usr.usuario];
+  if (rows) { const x = rows[m]; return (!x || !x.ver) ? 0 : (x.editar ? 2 : 1); }
+  return roleNivel(usr.rol, m);
+}
+function permRender() {
+  const pg = document.getElementById('page-permisos'), bg = ['#fecaca','#fef08a','#bbf7d0'];
+  pg.innerHTML = `<div class="ord-toolbar"><h2>🔐 Permisos por usuario</h2></div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Elige qué módulos puede <b>ver</b> o <b>editar</b> cada usuario. Si no lo personalizas, usa los permisos de su rol. El Admin siempre puede todo. Los cambios se aplican la próxima vez que el usuario abra o recargue la página.</div>
+    <div class="table-wrap"><table class="ord-tbl"><thead><tr><th>Usuario</th><th>Rol</th>${PERM_MODS.map(m=>`<th style="text-align:center;font-size:11px;">${m.n}</th>`).join('')}<th></th></tr></thead><tbody>
+    ${permUsers.map(u => { const custom = !!permRows[u.usuario], adm = u.rol==='ADMIN';
+      return `<tr><td><b>${esc(u.usuario.toUpperCase())}</b></td><td style="font-size:11px;">${esc(rolLabel(u.rol)||u.rol)}<br><span style="color:${custom?'#7c3aed':'#94a3b8'};">${adm?'Siempre todo':custom?'Personalizado':'Por rol'}</span></td>
+      ${PERM_MODS.map(m => { const n = permNivel(u, m.id); return `<td style="text-align:center;background:${bg[n]};padding:3px;"><select ${adm?'disabled':''} onchange="permSet('${u.usuario}','${m.id}',this.value)" style="border:1px solid #cbd5e1;border-radius:6px;font-size:11px;padding:2px;background:#fff;max-width:92px;">${PERM_NIVEL.map((t,i)=>`<option value="${i}" ${i===n?'selected':''}>${t}</option>`).join('')}</select></td>`; }).join('')}
+      <td>${custom&&!adm?`<button class="btn-primary" style="background:#94a3b8;padding:3px 8px;font-size:11px;" onclick="permReset('${u.usuario}')" title="Volver a los permisos de su rol">↩ Rol</button>`:''}</td></tr>`; }).join('')}
+    </tbody></table></div>`;
+}
+async function permSet(usuario, mod, val) {
+  const usr = permUsers.find(u => u.usuario===usuario); if (!usr) return; val = +val;
+  const base = permRows[usuario] ? [] : PERM_MODS.map(m => ({ usuario, modulo:m.id, ver: roleNivel(usr.rol,m.id)>=1, editar: roleNivel(usr.rol,m.id)>=2 }));
+  const target = { usuario, modulo:mod, ver: val>=1, editar: val>=2 };
+  const rows = base.length ? base.map(r => r.modulo===mod ? target : r) : [target];
+  const { error } = await sbClient.from('permisos_modulos').upsert(rows, { onConflict:'usuario,modulo' });
+  if (error) { toast('Error: '+error.message,'error'); permRender(); return; }
+  permRows[usuario] = permRows[usuario] || {}; rows.forEach(r => permRows[usuario][r.modulo] = { ver:r.ver, editar:r.editar });
+  logMovimiento('Permisos','Cambiar',`${usuario} · ${mod} → ${PERM_NIVEL[val]}`); toast('✓ Permiso guardado','success'); permRender();
+}
+async function permReset(usuario) {
+  if (!confirm(`¿Volver ${usuario.toUpperCase()} a los permisos de su rol?`)) return;
+  const { error } = await sbClient.from('permisos_modulos').delete().eq('usuario', usuario);
+  if (error) { toast('Error: '+error.message,'error'); return; }
+  delete permRows[usuario]; logMovimiento('Permisos','Restablecer a rol',usuario); permRender();
 }
 </script>
 </body>
